@@ -1,0 +1,1 @@
+python /content/VSR/EDVR/setup.py build install
