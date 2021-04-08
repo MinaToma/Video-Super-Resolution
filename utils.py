@@ -1,6 +1,5 @@
 import os
 import torch
-import logger
 import torch.nn as nn
 
 def loadPreTrainedModel(gpuMode, model, modelPath):
@@ -36,24 +35,24 @@ def loadPreTrainedModel(gpuMode, model, modelPath):
         print('Couldn\'t find pre-trained SR model at:', modelPath)
 
 def printCUDAStats():
-    logger.info("# of CUDA devices detected: %s", torch.cuda.device_count())
-    logger.info("Using CUDA device #: %s", torch.cuda.current_device())
-    logger.info("CUDA device name: %s", torch.cuda.get_device_name(torch.cuda.current_device()))
+    print("# of CUDA devices detected: %s", torch.cuda.device_count())
+    print("Using CUDA device #: %s", torch.cuda.current_device())
+    print("CUDA device name: %s", torch.cuda.get_device_name(torch.cuda.current_device()))
 
 def _printNetworkArch(net):
     num_params = 0
     for param in net.parameters():
         num_params += param.numel()
-    logger.info(net)
-    logger.info('Total number of parameters: %d' % num_params)
+    print(net)
+    print('Total number of parameters: %d' % num_params)
 
 def printNetworkArch(netG, netD):
-    logger.info('------------- EDVR GAN Network Architecture -------------')
+    print('------------- EDVR GAN Network Architecture -------------')
     if netG:
-        logger.info('----------------- Generator Architecture ------------------')
+        print('----------------- Generator Architecture ------------------')
         _printNetworkArch(netG)
 
     if netD:
-        logger.info('--------------- Discriminator Architecture ----------------')
+        print('--------------- Discriminator Architecture ----------------')
         _printNetworkArch(netD)
-        logger.info('-----------------------------------------------------------')
+        print('-----------------------------------------------------------')

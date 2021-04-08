@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from EDVR.modules.modulated_deform_conv import _ModulatedDeformConv
-from EDVR.modules.modulated_deform_conv import ModulatedDeformConvPack
+from modules.modulated_deform_conv import _ModulatedDeformConv
+from modules.modulated_deform_conv import ModulatedDeformConvPack
 
 channels = 64
 
