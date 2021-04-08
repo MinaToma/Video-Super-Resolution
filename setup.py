@@ -14,6 +14,7 @@ from setuptools import setup
 
 requirements = ["torch", "torchvision"]
 
+
 def get_extensions():
     this_dir = os.path.dirname(os.path.abspath(__file__))
     extensions_dir = os.path.join(this_dir, "src")
@@ -21,12 +22,14 @@ def get_extensions():
     main_file = glob.glob(os.path.join(extensions_dir, "*.cpp"))
     source_cpu = glob.glob(os.path.join(extensions_dir, "cpu", "*.cpp"))
     source_cuda = glob.glob(os.path.join(extensions_dir, "cuda", "*.cu"))
-
+    
+    os.environ["CC"] = "g++"
     sources = main_file + source_cpu
     extension = CppExtension
     extra_compile_args = {"cxx": []}
     define_macros = []
 
+    
     if torch.cuda.is_available() and CUDA_HOME is not None:
         extension = CUDAExtension
         sources += source_cuda
@@ -38,13 +41,15 @@ def get_extensions():
             "-D__CUDA_NO_HALF2_OPERATORS__",
         ]
     else:
-        raise NotImplementedError('Cuda is not availabel')
+        #raise NotImplementedError('Cuda is not available')
+        pass
+    
 
     sources = [os.path.join(extensions_dir, s) for s in sources]
     include_dirs = [extensions_dir]
     ext_modules = [
         extension(
-            "DCN",
+            "_ext",
             sources,
             include_dirs=include_dirs,
             define_macros=define_macros,
@@ -54,9 +59,9 @@ def get_extensions():
     return ext_modules
 
 setup(
-    name="DCN",
-    version="1.0",
-    author="xvjiarui",
+    name="DCNv2",
+    version="0.1",
+    author="charlesshang",
     url="https://github.com/charlesshang/DCNv2",
     description="deformable convolutional networks",
     packages=find_packages(exclude=("configs", "tests",)),
