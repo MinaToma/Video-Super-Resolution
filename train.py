@@ -5,16 +5,14 @@ import pandas as pd
 import torch.optim as optim
 import torch.utils.data
 from tqdm import tqdm
-import logger
-from rbpn import Net as RBPN
-from rbpn import GeneratorLoss
 from SRGAN.model import Discriminator
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import utils
-from EDVR.model import EDVR
-from EDVR_dataset import DatasetFromFolderTest, DatasetFromFolder
+from model import EDVR
+from dataset import get_training_set
+from loss import get_loss_function
 from torchvision.transforms import Compose, ToTensor
 
 
@@ -48,6 +46,7 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
     netD.train()
 
     iterTrainBar = iter(trainBar)
+
     for data in iterTrainBar:
         batchSize = len(data)
         runningResults['batchSize'] += batchSize
@@ -61,13 +60,9 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
         # Zero-out gradients, i.e., start afresh
         netD.zero_grad()
 
-        input, target = batch[0], batch[1]  # input: b, t, c, h, w target: t, c, h, w
-        if opt.gpu_mode and torch.cuda.is_available():
-            input = input.cuda()
-            target = target.cuda()
+        input, target = data[0], data[1]  # input: b, t, c, h, w target: t, c, h, w
 
         fakeHR = netG(input)
-
         realOut = netD(target).mean()
         fakeOut = netD(fakeHR).mean()
 
@@ -104,8 +99,6 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
                                        runningResults['GScore'] / runningResults['batchSize']))
         gc.collect()
 
-    netG.eval()
-
     # learning rate is decayed by a factor of 10 every half of total epochs
     if (epoch + 1) % (opt.nEpochs / 2) == 0:
         for param_group in optimizerG.param_groups:
@@ -126,8 +119,8 @@ def saveModelParams(epoch, runningResults, netG, netD):
     torch.save(netG.state_dict(), '/content/VSR/weights/netG_EDVR_epoch_4x_%d.pth' % (epoch))
     torch.save(netD.state_dict(), '/content/VSR/weights/netD_EDVR_epoch_4x_%d.pth' % (epoch))
 
-    logger.info("Checkpoint saved to {}".format('weights/netD_EDVR_epoch_4x_%d.pth' % (epoch)))
-    logger.info("Checkpoint saved to {}".format('weights/netG_EDVR_epoch_4x_%d.pth' % (epoch)))
+    print("Checkpoint saved to {}".format('weights/netD_EDVR_epoch_4x_%d.pth' % (epoch)))
+    print("Checkpoint saved to {}".format('weights/netG_EDVR_epoch_4x_%d.pth' % (epoch)))
 
     # Save Loss\Scores\PSNR\SSIM
     results['DLoss'].append(runningResults['DLoss'] / runningResults['batchSize'])
@@ -149,21 +142,18 @@ def main():
 
     opt = parser.parse_args()
 
-    # Initialize Logger
-    logger.initLogger(opt.debug)
-
     # Load dataset
-    logger.info('==> Loading datasets')
+    print('==> Loading datasets')
     train_set = get_training_set(opt)                                 
     training_data_loader = DataLoader(dataset=train_set, num_workers=opt.threads, batch_size=opt.batchSize, shuffle=True)
 
     # Use generator as EDVR
     netG = EDVR()
-    logger.info('# of Generator parameters: %s', sum(param.numel() for param in netG.parameters()))
+    print('# of Generator parameters: %s', sum(param.numel() for param in netG.parameters()))
 
     # Use discriminator from SRGAN
     netD = Discriminator()
-    logger.info('# of Discriminator parameters: %s', sum(param.numel() for param in netD.parameters()))
+    print('# of Discriminator parameters: %s', sum(param.numel() for param in netD.parameters()))
 
     # get loss function
     generatorCriterion = get_loss_function(opt)
@@ -171,23 +161,13 @@ def main():
     # Specify device
     device = torch.device("cuda:0" if torch.cuda.is_available() and opt.gpu_mode else "cpu")
 
-    if opt.gpu_mode and torch.cuda.is_available():
-        utils.printCUDAStats()
-
-        netG.cuda()
-        netD.cuda()
-
-        netG.to(device)
-        netD.to(device)
-
-        generatorCriterion.cuda()
 
     # Use Adam optimizer
     optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(0.9, 0.999), eps=1e-8)
     optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(0.9, 0.999), eps=1e-8)
   
     # print EDVR_GAN architecture
-    utils.printNetworkArch(netG, netD)
+    # utils.printNetworkArch(netG, netD)
     
     if opt.pretrained:
         modelDisPath = os.path.join(opt.save_folder + opt.pretrained_dis + '_' + str(opt.start_epoch) + '.pth')
