@@ -18,7 +18,7 @@ from torchvision.transforms import Compose, ToTensor
 
 # Handle command line arguments
 parser = argparse.ArgumentParser(description='Train EDRV GAN: Super Resolution Models')
-parser.add_argument('--batchSize', type=int, default=2, help='training batch size')
+parser.add_argument('--batchSize', type=int, default=1, help='training batch size')
 parser.add_argument('--start_epoch', type=int, default=1, help='Starting epoch for continuing training')
 parser.add_argument('--nEpochs', type=int, default=150, help='number of epochs to train for')
 parser.add_argument('--snapshots', type=int, default=1, help='Snapshots')
@@ -45,9 +45,7 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
     netG.train()
     netD.train()
 
-    iterTrainBar = iter(trainBar)
-
-    for data in iterTrainBar:
+    for iteration, data in enumerate(training_data_loader, 1):
         batchSize = len(data)
         runningResults['batchSize'] += batchSize
 
@@ -61,6 +59,9 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
         netD.zero_grad()
 
         input, target = data[0], data[1]  # input: b, t, c, h, w target: t, c, h, w
+
+        input = input.to(device)
+        target = target.to(device)
 
         fakeHR = netG(input)
         realOut = netD(target).mean()
@@ -161,6 +162,12 @@ def main():
     # Specify device
     device = torch.device("cuda:0" if torch.cuda.is_available() and opt.gpu_mode else "cpu")
 
+    if opt.gpu_mode and torch.cuda.is_available():
+        utils.printCUDAStats()
+
+    netG.to(device)
+    netD.to(device)
+    generatorCriterion.to(device)
 
     # Use Adam optimizer
     optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(0.9, 0.999), eps=1e-8)

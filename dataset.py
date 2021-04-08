@@ -36,8 +36,8 @@ class DataAug(object):
 class ToTensor(object):
     def __call__(self, sample):
         lr, hr = sample['lr'], sample['hr']
-        lr = torch.from_numpy(lr.copy()).float()
-        hr = torch.from_numpy(hr.copy()).float()
+        lr = torch.from_numpy(lr).float()
+        hr = torch.from_numpy(hr).float()
         return {'lr': lr.permute(0, 3, 1, 2), 'hr': hr.permute(2, 0, 1)}
 
 class REDSTrainDataset(data.Dataset):
