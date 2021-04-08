@@ -17,15 +17,9 @@ from EDVR.model import EDVR
 from EDVR_dataset import DatasetFromFolderTest, DatasetFromFolder
 from torchvision.transforms import Compose, ToTensor
 
-################################################## iSEEBETTER TRAINER KNOBS ############################################
-UPSCALE_FACTOR = 4
-########################################################################################################################
-
-numberOfEpochs = 0
 
 # Handle command line arguments
-parser = argparse.ArgumentParser(description='Train iSeeBetter: Super Resolution Models')
-parser.add_argument('--upscale_factor', type=int, default=4, help="super resolution upscale factor")
+parser = argparse.ArgumentParser(description='Train EDRV GAN: Super Resolution Models')
 parser.add_argument('--batchSize', type=int, default=2, help='training batch size')
 parser.add_argument('--start_epoch', type=int, default=1, help='Starting epoch for continuing training')
 parser.add_argument('--nEpochs', type=int, default=150, help='number of epochs to train for')
@@ -121,7 +115,7 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
 
     return runningResults
 
-def saveModelParams(epoch, runningResults, netG, netD, opt):
+def saveModelParams(epoch, runningResults, netG, netD):
     results = {'DLoss': [], 'GLoss': [], 'DScore': [], 'GScore': [], 'PSNR': [], 'SSIM': []}
 
     # Save number of Epoch
@@ -130,11 +124,11 @@ def saveModelParams(epoch, runningResults, netG, netD, opt):
     f.close()
 
     # Save model parameters
-    torch.save(netG.state_dict(), '/content/VSR/weights/netG_EDVR_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch))
-    torch.save(netD.state_dict(), '/content/VSR/weights/netD_EDVR_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch))
+    torch.save(netG.state_dict(), '/content/VSR/weights/netG_EDVR_epoch_4x_%d.pth' % (epoch))
+    torch.save(netD.state_dict(), '/content/VSR/weights/netD_EDVR_epoch_4x_%d.pth' % (epoch))
 
-    logger.info("Checkpoint saved to {}".format('weights/netD_EDVR_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch)))
-    logger.info("Checkpoint saved to {}".format('weights/netG_EDVR_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch)))
+    logger.info("Checkpoint saved to {}".format('weights/netD_EDVR_epoch_4x_%d.pth' % (epoch)))
+    logger.info("Checkpoint saved to {}".format('weights/netG_EDVR_epoch_4x_%d.pth' % (epoch)))
 
     # Save Loss\Scores\PSNR\SSIM
     results['DLoss'].append(runningResults['DLoss'] / runningResults['batchSize'])
@@ -149,7 +143,7 @@ def saveModelParams(epoch, runningResults, netG, netD, opt):
         data_frame = pd.DataFrame(data={'DLoss': results['DLoss'], 'GLoss': results['GLoss'], 'DScore': results['DScore'],
                                   'GScore': results['GScore']},# 'PSNR': results['PSNR'], 'SSIM': results['SSIM']},
                                   index=range(1, epoch + 1))
-        data_frame.to_csv(out_path + 'iSeeBetter_' + str(UPSCALE_FACTOR) + '_Train_Results.csv', index_label='Epoch')
+        data_frame.to_csv(out_path + 'EDVR_GAN_' + str(UPSCALE_FACTOR) + '_Train_Results.csv', index_label='Epoch')
 
 def main():
     """ Lets begin the training process! """
@@ -162,25 +156,18 @@ def main():
     # Load dataset
     logger.info('==> Loading datasets')
     train_set = get_training_set(opt)                                 
-    training_data_loader = DataLoader(dataset=train_set, num_workers=opt.threads, batch_size=opt.batchSize,
-                                      shuffle=True)
+    training_data_loader = DataLoader(dataset=train_set, num_workers=opt.threads, batch_size=opt.batchSize, shuffle=True)
 
     # Use generator as EDVR
     netG = EDVR()
-
     logger.info('# of Generator parameters: %s', sum(param.numel() for param in netG.parameters()))
-
-    # Use DataParallel?
-    if opt.useDataParallel:
-        gpus_list = range(opt.gpus)
-        netG = torch.nn.DataParallel(netG, device_ids=gpus_list)
 
     # Use discriminator from SRGAN
     netD = Discriminator()
     logger.info('# of Discriminator parameters: %s', sum(param.numel() for param in netD.parameters()))
 
-    # Generator loss
-    generatorCriterion = GeneratorLoss()
+    # get loss function
+    generatorCriterion = get_loss_function(opt)
 
     # Specify device
     device = torch.device("cuda:0" if torch.cuda.is_available() and opt.gpu_mode else "cpu")
@@ -199,10 +186,8 @@ def main():
     # Use Adam optimizer
     optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(0.9, 0.999), eps=1e-8)
     optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(0.9, 0.999), eps=1e-8)
-
-    logger.info("Generator Loss: Adversarial Loss + Perception Loss + Image Loss + TV Loss")
   
-    # print iSeeBetter architecture
+    # print EDVR_GAN architecture
     utils.printNetworkArch(netG, netD)
     
     if opt.pretrained:
