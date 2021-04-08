@@ -28,15 +28,14 @@ parser.add_argument('--lr', type=float, default=1e-4, help='Learning Rate. Defau
 parser.add_argument('--gpu_mode', type=bool, default=True)
 parser.add_argument('--threads', type=int, default=8, help='number of threads for data loader to use')
 parser.add_argument('--gpus', default=8, type=int, help='number of gpu')
-parser.add_argument('--data_dir', type=str, default='/content/drive/MyDrive/VSR/vimeo_test_clean/sequences')
-parser.add_argument('--nFrames', type=int, default=7)
+parser.add_argument('--frame', type=int, default=7)
 parser.add_argument('--data_augmentation', type=bool, default=True)
-parser.add_argument('--model_type', type=str, default='RBPN')
-parser.add_argument('--residual', type=bool, default=False)
-parser.add_argument('--pretrained_sr', default='RBPN_4x.pth', help='sr pretrained base model')
-parser.add_argument('--pretrained_dis', default='netD_epoch_4.pth', help='sr pretrained base model')
+parser.add_argument('--pretrained_sr', help='sr pretrained base model')
+parser.add_argument('--pretrained_dis', help='sr pretrained base model')
 parser.add_argument('--pretrained', action='store_true', help='Use pretrained model')
 parser.add_argument('--save_folder', default='/content/drive/MyDrive/VSR/weights/EDVR/', help='Location to save checkpoint models')
+parser.add_argument('--gt_dir', help='Location to ground truth frames')
+parser.add_argument('--lr_dir', help='Location to low resolution frames')
 parser.add_argument('--pretrained_epoch',type=str, default='epoch.txt',  help='number of pretrained epoch')
 parser.add_argument('--useDataParallel', action='store_true', help='Use DataParallel')
 parser.add_argument('-v', '--debug', default=False, action='store_true', help='Print debug spew.')
@@ -143,7 +142,7 @@ def saveModelParams(epoch, runningResults, netG, netD):
         data_frame = pd.DataFrame(data={'DLoss': results['DLoss'], 'GLoss': results['GLoss'], 'DScore': results['DScore'],
                                   'GScore': results['GScore']},# 'PSNR': results['PSNR'], 'SSIM': results['SSIM']},
                                   index=range(1, epoch + 1))
-        data_frame.to_csv(out_path + 'EDVR_GAN_' + str(UPSCALE_FACTOR) + '_Train_Results.csv', index_label='Epoch')
+        data_frame.to_csv(out_path + 'EDVR_GAN_4x_Train_Results.csv', index_label='Epoch')
 
 def main():
     """ Lets begin the training process! """

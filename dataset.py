@@ -7,7 +7,7 @@ from torchvision import transforms, ToTensor
 import cv2
 
 def get_training_set(opt):
-    return REDSTrainDataset(dir=root_path)
+    return REDSTrainDataset(opt)
 
 class DataAug(object):
     def __call__(self, sample):
