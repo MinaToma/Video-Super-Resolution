@@ -18,7 +18,7 @@ from torchvision.transforms import Compose, ToTensor
 
 # Handle command line arguments
 parser = argparse.ArgumentParser(description='Train EDRV GAN: Super Resolution Models')
-parser.add_argument('--batchSize', type=int, default=1, help='training batch size')
+parser.add_argument('--batchSize', type=int, default=16, help='training batch size')
 parser.add_argument('--start_epoch', type=int, default=1, help='Starting epoch for continuing training')
 parser.add_argument('--nEpochs', type=int, default=150, help='number of epochs to train for')
 parser.add_argument('--snapshots', type=int, default=1, help='Snapshots')
@@ -30,12 +30,13 @@ parser.add_argument('--frame', type=int, default=7)
 parser.add_argument('--data_augmentation', type=bool, default=True)
 parser.add_argument('--pretrained_sr', help='sr pretrained base model')
 parser.add_argument('--pretrained_dis', help='sr pretrained base model')
+parser.add_argument('--file_list', help='sr pretrained base model')
 parser.add_argument('--pretrained', action='store_true', help='Use pretrained model')
-parser.add_argument('--save_folder', default='/content/drive/MyDrive/VSR/weights/EDVR/', help='Location to save checkpoint models')
-parser.add_argument('--dataset_name', default='vemo90k' help='Location to ground truth frames')
+parser.add_argument('--save_folder', default='/content/out', help='Location to save checkpoint models')
+parser.add_argument('--dataset_name', default='vemo90k', help='Location to ground truth frames')
 parser.add_argument('--gt_dir', help='Location to ground truth frames')
 parser.add_argument('--lr_dir', help='Location to low resolution frames')
-parser.add_argument('--loss', default='' help='Location to low resolution frames')
+parser.add_argument('--loss', default='', help='Location to low resolution frames')
 parser.add_argument('--pretrained_epoch',type=str, default='epoch.txt',  help='number of pretrained epoch')
 
 def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
@@ -45,7 +46,7 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
     netG.train()
     netD.train()
 
-    for iteration, data in enumerate(training_data_loader, 1):
+    for _, data in enumerate(trainBar):
         batchSize = len(data)
         runningResults['batchSize'] += batchSize
 
@@ -79,6 +80,7 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
         GLoss = 0
         netG.zero_grad()
 
+        fakeOut = netD(fakeHR).mean()
         GLoss = generatorCriterion(fakeOut, fakeHR, target)
         GLoss.backward()
         optimizerG.step()
@@ -105,17 +107,17 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
 
     return runningResults
 
-def saveModelParams(epoch, runningResults, netG, netD):
+def saveModelParams(epoch, runningResults, netG, netD, opt):
     results = {'DLoss': [], 'GLoss': [], 'DScore': [], 'GScore': [], 'PSNR': [], 'SSIM': []}
 
     # Save number of Epoch
-    f = open('/content/VSR/weights/epoch.txt', 'w')
-    f.write(str(epoch))  
-    f.close()
+    # f = open('/content/VSR/weights/epoch.txt', 'w')
+    # f.write(str(epoch))  
+    # f.close()
 
     # Save model parameters
-    torch.save(netG.state_dict(), '/content/VSR/weights/netG_EDVR_epoch_4x_%d.pth' % (epoch))
-    torch.save(netD.state_dict(), '/content/VSR/weights/netD_EDVR_epoch_4x_%d.pth' % (epoch))
+    torch.save(netG.state_dict(), opt.save_folder + '/netG_EDVR_epoch_4x_%d.pth' % (epoch))
+    torch.save(netD.state_dict(), opt.save_folder + '/netD_EDVR_epoch_4x_%d.pth' % (epoch))
 
     print("Checkpoint saved to {}".format('weights/netD_EDVR_epoch_4x_%d.pth' % (epoch)))
     print("Checkpoint saved to {}".format('weights/netG_EDVR_epoch_4x_%d.pth' % (epoch)))
@@ -126,11 +128,11 @@ def saveModelParams(epoch, runningResults, netG, netD):
     results['DScore'].append(runningResults['DScore'] / runningResults['batchSize'])
     results['GScore'].append(runningResults['GScore'] / runningResults['batchSize'])
 
-    if epoch % 1 == 0 and epoch != 0:
-        out_path = '/content/VSR/statistics/'
-        data_frame = pd.DataFrame(data={'DLoss': results['DLoss'], 'GLoss': results['GLoss'], 'DScore': results['DScore'],
-                                  'GScore': results['GScore']}, index=range(1, epoch + 1))
-        data_frame.to_csv(out_path + 'EDVR_GAN_4x_Train_Results.csv', index_label='Epoch')
+    # if epoch % 1 == 0 and epoch != 0:
+        # out_path = '/content/VSR/statistics/'
+        # data_frame = pd.DataFrame(data={'DLoss': results['DLoss'], 'GLoss': results['GLoss'], 'DScore': results['DScore'],
+        #                           'GScore': results['GScore']}, index=range(1, epoch + 1))
+        # data_frame.to_csv(out_path + 'EDVR_GAN_4x_Train_Results.csv', index_label='Epoch')
 
 def main():
     """ Lets begin the training process! """
@@ -185,7 +187,7 @@ def main():
         runningResults = trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt)
 
         if (epoch + 1) % (opt.snapshots) == 0:
-            saveModelParams(epoch + numberOfEpochs, runningResults, netG, netD)
+            saveModelParams(epoch + numberOfEpochs, runningResults, netG, netD, opt)
 
 if __name__ == "__main__":
     main()

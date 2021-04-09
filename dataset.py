@@ -20,24 +20,19 @@ class DataAug(object):
     def __call__(self, sample):
         hflip = random.random() < 0.5
         vflip = random.random() < 0.5
-        rot90 = random.random() < 0.5
 
         lr, hr = sample['lr'], sample['hr']
         num, r, c, ch = lr.shape
 
         if hflip:
-            cv2.flip(hr, 1, hr)
+            hr = hr[:, ::-1, :]
             for idx in range(num):
-                cv2.flip(lr[idx, :, :, :], 1, lr[idx, :, :, :])
+                lr[idx, :, :, :] = lr[idx, :, ::-1, :]
         if vflip:
             hr = hr[::-1, :, :]
-            cv2.flip(hr, 0, hr)
             for idx in range(num):
-                cv2.flip(lr[idx, :, :, :], 0, lr[idx, :, :, :])
-        if rot90:
-            hr = hr.transpose(1, 0, 2)
-            lr = lr.transpose(0, 2, 1, 3)
-
+                lr[idx, :, :, :] = lr[idx, ::-1, :, :]
+        
         return {'lr': lr, 'hr': hr}
 
 class ToTensor(object):
@@ -55,9 +50,10 @@ class REDSTrainDataset(data.Dataset):
         self.img_list = sorted(listdir('{}/{}/'.format(self.dir_HR, self.dir_lis[0])))
         self.frame_num = opt.frame
         self.half_frame_num = int(self.frame_num / 2)
-        self.transform = Compose([ToTensor()])
         if opt.data_augmentation:
-            self.transform.append(DataAug())
+            self.transform = Compose([DataAug(), ToTensor()])
+        else:
+            self.transform = Compose([ToTensor()])
         self.scale = 4
         self.len = len(self.dir_lis) * len(self.img_list)
 
@@ -132,9 +128,10 @@ class Vemo90KTrainDataset(data.Dataset):
         self.folder_list = [x for x in alist]
         self.frame_num = opt.frame
         self.half_frame_num = int(self.frame_num / 2)
-        self.transform = Compose([ToTensor()])
         if opt.data_augmentation:
-            self.transform.append(DataAug())
+            self.transform = Compose([DataAug(), ToTensor()])
+        else:
+            self.transform = Compose([ToTensor()])
         self.scale = 4
         self.len = len(self.folder_list)
 
@@ -142,10 +139,10 @@ class Vemo90KTrainDataset(data.Dataset):
         return self.len
 
     def __getitem__(self, idx):
-        folder_name = self.dir_lis[folder_index]
+        folder_name = self.folder_list[idx]
         hr_folder_path = '{}/{}'.format(self.dir_HR, folder_name)
 
-        center_index = random.randint(self.half_frame_num, len(self.img_list) - (self.half_frame_num + 1))
+        center_index = random.randint(self.half_frame_num, 7 - (self.half_frame_num + 1))
 
         frames_hr_name = '{}/{}'.format(hr_folder_path, 'im' + str(center_index) + '.png')
         frames_hr = cv2.imread(frames_hr_name)
@@ -182,6 +179,7 @@ class Vid4TestDataset(data.Dataset):
         frames_hr = cv2.imread(frames_hr_name)
         h, w, ch = frames_hr.shape
 
+        print(frames_hr.shape)
         center_index = idx
 
         frames_lr = np.zeros((self.frame_num, int(h / self.scale), int(w / self.scale), ch))
@@ -194,6 +192,7 @@ class Vid4TestDataset(data.Dataset):
             frames_lr_name = '{}/{}'.format(self.dir_LR, self.img_list[j])
             img = cv2.imread(frames_lr_name)
             frames_lr[i, :, :, :] = img  # t h w c
+            print(img.shape)
 
         sample = {'lr': frames_lr, 'hr': frames_hr}
         sample = self.transform(sample)
