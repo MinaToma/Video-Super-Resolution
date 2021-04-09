@@ -16,7 +16,6 @@ from torchvision.transforms import Compose, ToTensor
 from dataset import get_test_set
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
-
 # Training settings
 parser = argparse.ArgumentParser(description='EDVR GAN Test')
 parser.add_argument('-m', '--model', default="/content/drive/MyDrive/VSR/EDVR/Copy of EDVR_L_x4_SR_Vimeo90K_official-162b54e4.pth", help="Model")
@@ -28,6 +27,7 @@ parser.add_argument('--gpus', default=1, type=int, help="How many GPU's to use")
 parser.add_argument('--dataset_name', default='Vid4', help='Location to ground truth frames')
 parser.add_argument('--gt_dir', help='Location to ground truth frames')
 parser.add_argument('--lr_dir', help='Location to low resolution frames')
+parser.add_argument('--clip_name', help='Location to low resolution frames')
 parser.add_argument('--frame', type=int, default=7, help="")
 parser.add_argument('-u', '--upscale_only', type=bool, default=False, help="Upscale mode - without downscaling.")
 
@@ -49,7 +49,7 @@ model = EDVR(num_frame=opt.frame)
 device = torch.device("cuda:0" if cuda and torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
-save_dir = os.path.join(opt.output, opt.dataset_name, '4x', str(opt.frame))
+save_dir = os.path.join(opt.output, opt.dataset_name, opt.clip_name, str(opt.frame))
 
 def eval():
     # print EDVR GAN architecture
@@ -79,7 +79,6 @@ def eval():
         t1 = time.time()
         print("==> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0)))
         save_img(prediction.cpu().data, count)
-        save_img(target.cpu().data, count)
 
         prediction = prediction.cpu()
         prediction = prediction.data[0].numpy().astype(np.float32)
