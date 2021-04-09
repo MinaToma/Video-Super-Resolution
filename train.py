@@ -35,6 +35,7 @@ parser.add_argument('--save_folder', default='/content/drive/MyDrive/VSR/weights
 parser.add_argument('--dataset_name', default='vemo90k' help='Location to ground truth frames')
 parser.add_argument('--gt_dir', help='Location to ground truth frames')
 parser.add_argument('--lr_dir', help='Location to low resolution frames')
+parser.add_argument('--loss', default='' help='Location to low resolution frames')
 parser.add_argument('--pretrained_epoch',type=str, default='epoch.txt',  help='number of pretrained epoch')
 
 def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
@@ -48,19 +49,16 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
         batchSize = len(data)
         runningResults['batchSize'] += batchSize
 
+        input, target = data[0], data[1]  # input: b, t, c, h, w target: t, c, h, w
+        input = input.to(device)
+        target = target.to(device)
+
         ################################################################################################################
         # (1) Update D network: maximize D(x)-1-D(G(z))
         ################################################################################################################
 
         DLoss = 0
-
-        # Zero-out gradients, i.e., start afresh
         netD.zero_grad()
-
-        input, target = data[0], data[1]  # input: b, t, c, h, w target: t, c, h, w
-
-        input = input.to(device)
-        target = target.to(device)
 
         fakeHR = netG(input)
         realOut = netD(target).mean()
