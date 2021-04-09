@@ -1,0 +1,132 @@
+from __future__ import print_function
+import argparse
+import glob
+from copy import deepcopy
+
+import os
+import torch
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
+import numpy as np
+import utils
+import time
+import cv2
+import math
+from model import EDVR
+from torchvision.transforms import Compose, ToTensor
+
+from torch.nn.parallel import DataParallel, DistributedDataParallel
+
+
+# Training settings
+parser = argparse.ArgumentParser(description='EDVR GAN Test')
+parser.add_argument('-m', '--model', default="/content/drive/MyDrive/VSR/EDVR/Copy of EDVR_L_x4_SR_Vimeo90K_official-162b54e4.pth", help="Model")
+parser.add_argument('-o', '--output', default='/content/VSR/results/', help="Location to save test results")
+parser.add_argument('-c', '--gpu_mode',default=True, action='store_true', required=False, help="Use a CUDA compatible GPU if available")
+parser.add_argument('--testBatchSize', type=int, default=1, help="Testing Batch Size")
+parser.add_argument('--threads', type=int, default=1, help="Dataloader Threads")
+parser.add_argument('--gpus', default=1, type=int, help="How many GPU's to use")
+parser.add_argument('--data_dir', type=str, default="/content/VSR/Vid4/1/")
+parser.add_argument('--video_path', type=str, default="1.mp4")
+parser.add_argument('--dataset_name', default='Vid4' help='Location to ground truth frames')
+parser.add_argument('--file_list', type=str, default="1.txt")
+parser.add_argument('--other_dataset', type=bool, default=True, help="Use a dataset that isn't vimeo-90k")
+parser.add_argument('--future_frame', type=bool, default=True, help="Use future frame")
+parser.add_argument('--frame', type=int, default=7, help="")
+parser.add_argument('--model_type', type=str, default="EDVR", help="")
+parser.add_argument('-u', '--upscale_only', type=bool, default=False,
+                    help="Upscale mode - without downscaling.")
+
+opt = parser.parse_opt()
+
+cuda = opt.gpu_mode
+if cuda:
+    print("Using GPU mode")
+    if not torch.cuda.is_available():
+        raise Exception("No GPU found, please run without --gpu_mode")
+
+print('==> Loading datasets')
+test_set = get_test_set(opt)
+testing_data_loader = DataLoader(dataset=test_set, num_workers=opt.threads, batch_size=opt.testBatchSize, shuffle=False)
+
+print('==> Building model ', opt.model_type)
+netG = EDVR(num_frame=opt.frame)
+
+device = torch.device("cuda:0" if cuda and torch.cuda.is_available() else "cpu")
+model = model.to(device)
+
+def eval():
+    # print EDVR GAN architecture
+    # utils.printNetworkArch(netG=model, netD=None)
+
+    # load model
+    modelPath = os.path.join(opt.model)
+    utils.loadPreTrainedModel(gpuMode=opt.gpu_mode, model=model, modelPath=modelPath)
+    model.eval()
+    count = 0
+    
+    if not opt.upscale_only:
+        avg_psnr_predicted = 0.0
+
+    for batch in testing_data_loader:
+        input, target = batch[0], batch[1]
+
+        with torch.no_grad():
+            if cuda:
+                neigbor = neigbor.cuda()
+            else:
+                neigbor = [Variable(j).to(device=device, dtype=torch.float) for j in neigbor]
+
+        t0 = time.time()
+        
+        with torch.no_grad():
+            prediction = model(input)
+
+        t1 = time.time()
+        print("==> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0)))
+        save_img(prediction.cpu().data, str(count), True)
+        # save_img(target, str(count), False)
+
+        prediction = prediction.cpu()
+        prediction = prediction.data[0].numpy().astype(np.float32)
+        prediction = prediction * 255.
+
+        target = target.squeeze().numpy().astype(np.float32)
+        target = target * 255.
+        if not upscale_only:
+            psnr_predicted = PSNR(prediction, targe)
+            print("PSNR Predicted = ", psnr_predicted)
+            avg_psnr_predicted += psnr_predicted
+        count += 1
+    
+    if not upscale_only:
+        print("Avg PSNR Predicted = ", avg_psnr_predicted / count)
+
+
+def save_img(img, img_name, pred_flag):
+    save_img = img.squeeze().clamp(0, 1).numpy().transpose(1, 2, 0)
+
+    # save img
+    save_dir = os.path.join(opt.output, opt.data_dir,
+                            os.path.splitext(opt.file_list)[0] + '_4x')
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    if pred_flag:
+        save_fn = save_dir + '/' + img_name + '_' + opt.model_type + 'F' + str(opt.nFrames) + '.png'
+        cv2.imwrite(save_fn, cv2.cvtColor(save_img * 255, cv2.COLOR_BGR2RGB), [cv2.IMWRITE_PNG_COMPRESSION, 0])
+    else:
+        save_fn = save_dir + '/' + img_name + '.png'
+
+def PSNR(pred, gt, shave_border=4):
+    height, width = pred.shape[1:3]
+    pred = pred[:, 1 + shave_border:height - shave_border, 1 + shave_border:width - shave_border]
+    gt = gt[:, 1 + shave_border:height - shave_border, 1 + shave_border:width - shave_border]
+    imdff = pred - gt
+    rmse = math.sqrt(np.mean(imdff ** 2))
+    if rmse == 0:
+        return 100
+    return 20 * math.log10(255.0 / rmse)
+
+if __name__ == "__main__":
+    eval()

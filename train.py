@@ -32,6 +32,7 @@ parser.add_argument('--pretrained_sr', help='sr pretrained base model')
 parser.add_argument('--pretrained_dis', help='sr pretrained base model')
 parser.add_argument('--pretrained', action='store_true', help='Use pretrained model')
 parser.add_argument('--save_folder', default='/content/drive/MyDrive/VSR/weights/EDVR/', help='Location to save checkpoint models')
+parser.add_argument('--dataset_name', default='REDS' help='Location to ground truth frames')
 parser.add_argument('--gt_dir', help='Location to ground truth frames')
 parser.add_argument('--lr_dir', help='Location to low resolution frames')
 parser.add_argument('--pretrained_epoch',type=str, default='epoch.txt',  help='number of pretrained epoch')
@@ -126,14 +127,11 @@ def saveModelParams(epoch, runningResults, netG, netD):
     results['GLoss'].append(runningResults['GLoss'] / runningResults['batchSize'])
     results['DScore'].append(runningResults['DScore'] / runningResults['batchSize'])
     results['GScore'].append(runningResults['GScore'] / runningResults['batchSize'])
-    # results['PSNR'].append(validationResults['PSNR'])
-    # results['SSIM'].append(validationResults['SSIM'])
 
     if epoch % 1 == 0 and epoch != 0:
         out_path = '/content/VSR/statistics/'
         data_frame = pd.DataFrame(data={'DLoss': results['DLoss'], 'GLoss': results['GLoss'], 'DScore': results['DScore'],
-                                  'GScore': results['GScore']},# 'PSNR': results['PSNR'], 'SSIM': results['SSIM']},
-                                  index=range(1, epoch + 1))
+                                  'GScore': results['GScore']}, index=range(1, epoch + 1))
         data_frame.to_csv(out_path + 'EDVR_GAN_4x_Train_Results.csv', index_label='Epoch')
 
 def main():
