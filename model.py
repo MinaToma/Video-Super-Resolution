@@ -317,15 +317,11 @@ class EDVR(nn.Module):
                  deformable_groups=8,
                  num_extract_block=5,
                  num_reconstruct_block=40,
-                 center_frame_idx=4,
                  hr_in=False,
                  with_predeblur=False,
                  with_tsa=True):
         super(EDVR, self).__init__()
-        if center_frame_idx is None:
-            self.center_frame_idx = num_frame // 2
-        else:
-            self.center_frame_idx = center_frame_idx
+        self.center_frame_idx = num_frame // 2
         self.hr_in = hr_in
         self.with_predeblur = with_predeblur
         self.with_tsa = with_tsa

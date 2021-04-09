@@ -35,8 +35,6 @@ parser.add_argument('--save_folder', default='/content/drive/MyDrive/VSR/weights
 parser.add_argument('--gt_dir', help='Location to ground truth frames')
 parser.add_argument('--lr_dir', help='Location to low resolution frames')
 parser.add_argument('--pretrained_epoch',type=str, default='epoch.txt',  help='number of pretrained epoch')
-parser.add_argument('--useDataParallel', action='store_true', help='Use DataParallel')
-parser.add_argument('-v', '--debug', default=False, action='store_true', help='Print debug spew.')
 
 def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
@@ -149,7 +147,7 @@ def main():
     training_data_loader = DataLoader(dataset=train_set, num_workers=opt.threads, batch_size=opt.batchSize, shuffle=True)
 
     # Use generator as EDVR
-    netG = EDVR()
+    netG = EDVR(num_frame=opt.frame)
     print('# of Generator parameters: %s', sum(param.numel() for param in netG.parameters()))
 
     # Use discriminator from SRGAN
