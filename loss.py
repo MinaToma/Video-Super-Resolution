@@ -19,16 +19,15 @@ class GeneratorLoss(nn.Module):
         self.mse_loss = nn.MSELoss()
         self.tv_loss = TVLoss()
 
-    def forward(self, out_labels, hr_est, hr_img):
+    def forward(self, out_labels, out_images, target_images):
         # Adversarial Loss
-        adversarial_loss = -torch.mean(out_labels)
+        adversarial_loss = torch.mean(1 - out_labels)
         # Perception Loss
-        perception_loss = self.mse_loss(self.loss_network(hr_est), self.loss_network(hr_img))
+        perception_loss = self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))
         # Image Loss
-        image_loss = self.mse_loss(hr_est, hr_img)
+        image_loss = self.mse_loss(out_images, target_images)
         # TV Loss
-        tv_loss = self.tv_loss(hr_est)
-
+        tv_loss = self.tv_loss(out_images)
         return image_loss + 0.001 * adversarial_loss + 0.006 * perception_loss + 2e-8 * tv_loss
 
 
