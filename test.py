@@ -32,7 +32,7 @@ parser.add_argument('--lr_dir', help='Location to low resolution frames')
 parser.add_argument('--frame', type=int, default=7, help="")
 parser.add_argument('-u', '--upscale_only', type=bool, default=False, help="Upscale mode - without downscaling.")
 
-opt = parser.parse_opt()
+opt = parser.parse_args()
 
 cuda = opt.gpu_mode
 if cuda:
