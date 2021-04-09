@@ -28,6 +28,8 @@ parser.add_argument('--threads', type=int, default=1, help="Dataloader Threads")
 parser.add_argument('--gpus', default=1, type=int, help="How many GPU's to use")
 parser.add_argument('--dataset_name', default='Vid4' help='Location to ground truth frames')
 parser.add_argument('--file_list', type=str, default="1.txt")
+parser.add_argument('--gt_dir', help='Location to ground truth frames')
+parser.add_argument('--lr_dir', help='Location to low resolution frames')
 parser.add_argument('--frame', type=int, default=7, help="")
 parser.add_argument('-u', '--upscale_only', type=bool, default=False, help="Upscale mode - without downscaling.")
 
