@@ -18,13 +18,13 @@ from torchvision.transforms import Compose, ToTensor
 
 # Handle command line arguments
 parser = argparse.ArgumentParser(description='Train EDRV GAN: Super Resolution Models')
-parser.add_argument('--batchSize', type=int, default=16, help='training batch size')
+parser.add_argument('--batchSize', type=int, default=1, help='training batch size')
 parser.add_argument('--start_epoch', type=int, default=1, help='Starting epoch for continuing training')
 parser.add_argument('--nEpochs', type=int, default=150, help='number of epochs to train for')
 parser.add_argument('--snapshots', type=int, default=1, help='Snapshots')
 parser.add_argument('--lr', type=float, default=1e-4, help='Learning Rate. Default=0.01')
 parser.add_argument('--gpu_mode', type=bool, default=True)
-parser.add_argument('--threads', type=int, default=8, help='number of threads for data loader to use')
+parser.add_argument('--threads', type=int, default=2, help='number of threads for data loader to use')
 parser.add_argument('--gpus', default=8, type=int, help='number of gpu')
 parser.add_argument('--frame', type=int, default=7)
 parser.add_argument('--data_augmentation', type=bool, default=True)
@@ -46,11 +46,13 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
     netG.train()
     netD.train()
 
-    for _, data in enumerate(trainBar):
-        batchSize = len(data)
+    for input, target in trainBar:
+        batchSize = input.size(0)
         runningResults['batchSize'] += batchSize
 
-        input, target = data[0], data[1]  # input: b, t, c, h, w target: t, c, h, w
+        input = Variable(input)
+        target = Variable(target)
+
         input = input.to(device)
         target = target.to(device)
 
@@ -65,11 +67,6 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
         realOut = netD(target).mean()
         fakeOut = netD(fakeHR).mean()
 
-        fakeScrs = []
-        realScrs = []
-        fakeScrs.append(fakeOut)
-        realScrs.append(realOut)
-
         DLoss += 1 - realOut + fakeOut
         DLoss.backward(retain_graph=True)
         optimizerD.step()
@@ -77,7 +74,6 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
         ################################################################################################################
         # (2) Update G network: minimize 1-D(G(z)) + Perception Loss + Image Loss + TV Loss
         ################################################################################################################
-        GLoss = 0
         netG.zero_grad()
 
         fakeOut = netD(fakeHR).mean()
@@ -85,12 +81,12 @@ def trainModel(epoch, training_data_loader, netG, netD, optimizerD, optimizerG, 
         GLoss.backward()
         optimizerG.step()
 
-        realOut = torch.Tensor(realScrs).mean()
-        fakeOut = torch.Tensor(fakeScrs).mean()
-        runningResults['GLoss'] += GLoss.item() * opt.batchSize
-        runningResults['DLoss'] += DLoss.item() * opt.batchSize
-        runningResults['DScore'] += realOut.item() * opt.batchSize
-        runningResults['GScore'] += fakeOut.item() * opt.batchSize
+        fakeHR = netG(input)
+        fakeOut = netD(fakeHR).mean()
+        runningResults['GLoss'] += GLoss.item() * batchSize
+        runningResults['DLoss'] += DLoss.item() * batchSize
+        runningResults['DScore'] += realOut.item() * batchSize
+        runningResults['GScore'] += fakeOut.item() * batchSize
 
         trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, opt.nEpochs, runningResults['DLoss'] / runningResults['batchSize'],
@@ -129,10 +125,10 @@ def saveModelParams(epoch, runningResults, netG, netD, opt):
     results['GScore'].append(runningResults['GScore'] / runningResults['batchSize'])
 
     # if epoch % 1 == 0 and epoch != 0:
-        # out_path = '/content/VSR/statistics/'
-        # data_frame = pd.DataFrame(data={'DLoss': results['DLoss'], 'GLoss': results['GLoss'], 'DScore': results['DScore'],
-        #                           'GScore': results['GScore']}, index=range(1, epoch + 1))
-        # data_frame.to_csv(out_path + 'EDVR_GAN_4x_Train_Results.csv', index_label='Epoch')
+    #     out_path = '/content/VSR/statistics/'
+    #     data_frame = pd.DataFrame(data={'DLoss': results['DLoss'], 'GLoss': results['GLoss'], 'DScore': results['DScore'],
+    #                               'GScore': results['GScore']}, index=range(1, epoch + 1))
+    #     data_frame.to_csv(out_path + 'EDVR_GAN_4x_Train_Results.csv', index_label='Epoch')
 
 def main():
     """ Lets begin the training process! """
@@ -146,11 +142,11 @@ def main():
 
     # Use generator as EDVR
     netG = EDVR(num_frame=opt.frame)
-    print('# of Generator parameters: %s', sum(param.numel() for param in netG.parameters()))
+    print('# of Generator parameters: ', sum(param.numel() for param in netG.parameters()))
 
     # Use discriminator from SRGAN
     netD = Discriminator()
-    print('# of Discriminator parameters: %s', sum(param.numel() for param in netD.parameters()))
+    print('# of Discriminator parameters: ', sum(param.numel() for param in netD.parameters()))
 
     # get loss function
     generatorCriterion = get_loss_function(opt)

@@ -69,6 +69,8 @@ def eval():
         input, target = batch[0], batch[1]
 
         with torch.no_grad():
+            input = Variable(input)
+            target = Variable(target)
             input = input.to(device)
             target = target.to(device)
 
