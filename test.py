@@ -26,16 +26,10 @@ parser.add_argument('-c', '--gpu_mode',default=True, action='store_true', requir
 parser.add_argument('--testBatchSize', type=int, default=1, help="Testing Batch Size")
 parser.add_argument('--threads', type=int, default=1, help="Dataloader Threads")
 parser.add_argument('--gpus', default=1, type=int, help="How many GPU's to use")
-parser.add_argument('--data_dir', type=str, default="/content/VSR/Vid4/1/")
-parser.add_argument('--video_path', type=str, default="1.mp4")
 parser.add_argument('--dataset_name', default='Vid4' help='Location to ground truth frames')
 parser.add_argument('--file_list', type=str, default="1.txt")
-parser.add_argument('--other_dataset', type=bool, default=True, help="Use a dataset that isn't vimeo-90k")
-parser.add_argument('--future_frame', type=bool, default=True, help="Use future frame")
 parser.add_argument('--frame', type=int, default=7, help="")
-parser.add_argument('--model_type', type=str, default="EDVR", help="")
-parser.add_argument('-u', '--upscale_only', type=bool, default=False,
-                    help="Upscale mode - without downscaling.")
+parser.add_argument('-u', '--upscale_only', type=bool, default=False, help="Upscale mode - without downscaling.")
 
 opt = parser.parse_opt()
 
@@ -49,7 +43,7 @@ print('==> Loading datasets')
 test_set = get_test_set(opt)
 testing_data_loader = DataLoader(dataset=test_set, num_workers=opt.threads, batch_size=opt.testBatchSize, shuffle=False)
 
-print('==> Building model ', opt.model_type)
+print('==> Building model ')
 netG = EDVR(num_frame=opt.frame)
 
 device = torch.device("cuda:0" if cuda and torch.cuda.is_available() else "cpu")
@@ -78,7 +72,6 @@ def eval():
                 neigbor = [Variable(j).to(device=device, dtype=torch.float) for j in neigbor]
 
         t0 = time.time()
-        
         with torch.no_grad():
             prediction = model(input)
 
@@ -107,13 +100,13 @@ def save_img(img, img_name, pred_flag):
     save_img = img.squeeze().clamp(0, 1).numpy().transpose(1, 2, 0)
 
     # save img
-    save_dir = os.path.join(opt.output, opt.data_dir,
+    save_dir = os.path.join(opt.output, opt.dataset_name,
                             os.path.splitext(opt.file_list)[0] + '_4x')
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     if pred_flag:
-        save_fn = save_dir + '/' + img_name + '_' + opt.model_type + 'F' + str(opt.nFrames) + '.png'
+        save_fn = save_dir + '/' + img_name + '_' + 'EDVR_GAN' + 'F' + str(opt.nFrames) + '.png'
         cv2.imwrite(save_fn, cv2.cvtColor(save_img * 255, cv2.COLOR_BGR2RGB), [cv2.IMWRITE_PNG_COMPRESSION, 0])
     else:
         save_fn = save_dir + '/' + img_name + '.png'
