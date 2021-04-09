@@ -2,7 +2,6 @@ from __future__ import print_function
 import argparse
 import glob
 from copy import deepcopy
-
 import os
 import torch
 from torch.autograd import Variable
@@ -50,6 +49,8 @@ model = EDVR(num_frame=opt.frame)
 device = torch.device("cuda:0" if cuda and torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
+save_dir = os.path.join(opt.output, opt.dataset_name, '4x', str(opt.frame))
+
 def eval():
     # print EDVR GAN architecture
     # utils.printNetworkArch(netG=model, netD=None)
@@ -58,12 +59,12 @@ def eval():
     modelPath = os.path.join(opt.model)
     utils.loadPreTrainedModel(gpuMode=opt.gpu_mode, model=model, modelPath=modelPath)
     model.eval()
-    count = 0
     
     if not opt.upscale_only:
         avg_psnr_predicted = 0.0
         avg_ssim_predicted = 0.0
 
+    count = 0
     for batch in testing_data_loader:
         input, target = batch[0], batch[1]
 
@@ -77,8 +78,8 @@ def eval():
 
         t1 = time.time()
         print("==> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0)))
-        save_img(prediction.cpu().data, str(count), True)
-        save_img(target.cpu().data, 'target' + str(count), True)
+        save_img(prediction.cpu().data, count)
+        save_img(target.cpu().data, count)
 
         prediction = prediction.cpu()
         prediction = prediction.data[0].numpy().astype(np.float32)
@@ -89,35 +90,27 @@ def eval():
         if not opt.upscale_only:
             psnr_predicted = PSNR(prediction, target)
             ssim_predicted = SSIM(prediction, target)
-            print("PSNR Predicted = ", psnr_predicted)
-            print("SSIM Predicted = ", ssim_predicted)
             avg_psnr_predicted += psnr_predicted
             avg_ssim_predicted += ssim_predicted
+            print("PSNR Predicted = ", psnr_predicted)
+            print("SSIM Predicted = ", ssim_predicted)
+            
         count += 1
     
     if not opt.upscale_only:
         print("Avg PSNR Predicted = ", avg_psnr_predicted / count)
         print("Avg SSIM Predicted = ", avg_ssim_predicted / count)
 
-
-def save_img(img, img_name, pred_flag):
+def save_img(img, count):
     save_img = img.squeeze().clamp(0, 1).numpy().transpose(1, 2, 0)
 
-    # save img
-    save_dir = os.path.join(opt.output, opt.dataset_name, '4x')
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    if pred_flag:
-        save_fn = save_dir + '/' + img_name + '_' + 'EDVR_GAN' + 'F' + str(opt.frame) + '.png'
-        cv2.imwrite(save_fn, save_img * 255, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-    else:
-        save_fn = save_dir + '/' + img_name + '.png'
+    save_fn = save_dir + '/' +  str(count).zfill(8) + '.png'
+    cv2.imwrite(save_fn, save_img * 255, [cv2.IMWRITE_PNG_COMPRESSION, 0])
 
 def PSNR(pred, gt, shave_border=4):
-    height, width = pred.shape[1:3]
-    pred = pred[:, 1 + shave_border:height - shave_border, 1 + shave_border:width - shave_border]
-    gt = gt[:, 1 + shave_border:height - shave_border, 1 + shave_border:width - shave_border]
     imdff = pred - gt
     rmse = math.sqrt(np.mean(imdff ** 2))
     if rmse == 0:
