@@ -40,7 +40,7 @@ class DataAug(object):
 
 class ToTensor(object):
     def __call__(self, sample):
-        lr, hr = sample['lr'], sample['hr']
+        lr, hr = sample['lr'] / 255, sample['hr'] / 255
         lr = torch.from_numpy(lr).float()
         hr = torch.from_numpy(hr).float()
         return {'lr': lr.permute(0, 3, 1, 2), 'hr': hr.permute(2, 0, 1)}
@@ -94,7 +94,7 @@ class Vemo90KTrainDataset(data.Dataset):
         self.frame_num = opt.frame
         self.half_frame_num = int(self.frame_num / 2)
         self.transform = Compose([ToTensor()])
-         if opt.data_augmentation:
+        if opt.data_augmentation:
             self.transform.append(DataAug())
         self.scale = 4
         self.len = len(self.folder_list)
@@ -143,6 +143,8 @@ class Vid4TestDataset(data.Dataset):
         frames_hr = cv2.imread(frames_hr_name)
         h, w, ch = frames_hr.shape
 
+        center_index = idx
+
         frames_lr = np.zeros((self.frame_num, int(h / self.scale), int(w / self.scale), ch))
         for j in range(center_index - self.half_frame_num, center_index + self.half_frame_num + 1):
             i = j - center_index + self.half_frame_num
@@ -150,7 +152,7 @@ class Vid4TestDataset(data.Dataset):
                 j = 0
             if j >= self.len:
                 j = self.len - 1
-            frames_lr_name = '{}/{}/{}'.format(self.dir_LR, self.img_list[j])
+            frames_lr_name = '{}/{}'.format(self.dir_LR, self.img_list[j])
             img = cv2.imread(frames_lr_name)
             frames_lr[i, :, :, :] = img  # t h w c
 

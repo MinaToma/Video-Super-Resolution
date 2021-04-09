@@ -14,7 +14,7 @@ import cv2
 import math
 from model import EDVR
 from torchvision.transforms import Compose, ToTensor
-
+from dataset import get_test_set
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 
@@ -45,7 +45,7 @@ test_set = get_test_set(opt)
 testing_data_loader = DataLoader(dataset=test_set, num_workers=opt.threads, batch_size=opt.testBatchSize, shuffle=False)
 
 print('==> Building model ')
-netG = EDVR(num_frame=opt.frame)
+model = EDVR(num_frame=opt.frame)
 
 device = torch.device("cuda:0" if cuda and torch.cuda.is_available() else "cpu")
 model = model.to(device)
@@ -78,15 +78,15 @@ def eval():
         t1 = time.time()
         print("==> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0)))
         save_img(prediction.cpu().data, str(count), True)
-        # save_img(target, str(count), False)
+        save_img(target.cpu().data, 'target' + str(count), True)
 
         prediction = prediction.cpu()
         prediction = prediction.data[0].numpy().astype(np.float32)
         prediction = prediction * 255.
 
-        target = target.squeeze().numpy().astype(np.float32)
+        target = target.cpu().squeeze().numpy().astype(np.float32)
         target = target * 255.
-        if not upscale_only:
+        if not opt.upscale_only:
             psnr_predicted = PSNR(prediction, target)
             ssim_predicted = SSIM(prediction, target)
             print("PSNR Predicted = ", psnr_predicted)
@@ -95,7 +95,7 @@ def eval():
             avg_ssim_predicted += ssim_predicted
         count += 1
     
-    if not upscale_only:
+    if not opt.upscale_only:
         print("Avg PSNR Predicted = ", avg_psnr_predicted / count)
         print("Avg SSIM Predicted = ", avg_ssim_predicted / count)
 
@@ -104,14 +104,13 @@ def save_img(img, img_name, pred_flag):
     save_img = img.squeeze().clamp(0, 1).numpy().transpose(1, 2, 0)
 
     # save img
-    save_dir = os.path.join(opt.output, opt.dataset_name,
-                            os.path.splitext(opt.file_list)[0] + '_4x')
+    save_dir = os.path.join(opt.output, opt.dataset_name, '4x')
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     if pred_flag:
-        save_fn = save_dir + '/' + img_name + '_' + 'EDVR_GAN' + 'F' + str(opt.nFrames) + '.png'
-        cv2.imwrite(save_fn, cv2.cvtColor(save_img * 255, cv2.COLOR_BGR2RGB), [cv2.IMWRITE_PNG_COMPRESSION, 0])
+        save_fn = save_dir + '/' + img_name + '_' + 'EDVR_GAN' + 'F' + str(opt.frame) + '.png'
+        cv2.imwrite(save_fn, save_img * 255, [cv2.IMWRITE_PNG_COMPRESSION, 0])
     else:
         save_fn = save_dir + '/' + img_name + '.png'
 
@@ -190,8 +189,8 @@ def SSIM(img1, img2):
     img2 = img2.astype(np.float64)
 
     ssims = []
-    for i in range(img1.shape[2]):
-        ssims.append(_ssim(img1[..., i], img2[..., i]))
+    for i in range(img1.shape[0]):
+        ssims.append(_ssim(img1[i, ...], img2[i, ...]))
     return np.array(ssims).mean()
 
 if __name__ == "__main__":
