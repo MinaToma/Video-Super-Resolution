@@ -153,8 +153,6 @@ class Vemo90KTrainDataset(data.Dataset):
             i = j - center_index + self.half_frame_num
             frames_lr_name = '{}/{}/{}'.format(self.dir_LR, folder_name, 'im' + str(j) + '.png')
             img = cv2.imread(frames_lr_name)
-            print(i)
-            print(frames_lr_name)
             frames_lr[i, :, :, :] = img  # t h w c
 
         sample = {'lr': frames_lr, 'hr': frames_hr}
