@@ -144,14 +144,14 @@ class Vemo90KTrainDataset(data.Dataset):
 
         center_index = random.randint(self.half_frame_num, 7 - (self.half_frame_num + 1))
 
-        frames_hr_name = '{}/{}'.format(hr_folder_path, 'im' + str(center_index) + '.png')
+        frames_hr_name = '{}/{}'.format(hr_folder_path, 'im' + str(center_index + 1) + '.png')
         frames_hr = cv2.imread(frames_hr_name)
         h, w, ch = frames_hr.shape
 
         frames_lr = np.zeros((self.frame_num, int(h / self.scale), int(w / self.scale), ch))
         for j in range(center_index - self.half_frame_num, center_index + self.half_frame_num + 1):
             i = j - center_index + self.half_frame_num
-            frames_lr_name = '{}/{}/{}'.format(self.dir_LR, folder_name, 'im' + str(j) + '.png')
+            frames_lr_name = '{}/{}/{}'.format(self.dir_LR, folder_name, 'im' + str(j + 1) + '.png')
             img = cv2.imread(frames_lr_name)
             frames_lr[i, :, :, :] = img  # t h w c
 
