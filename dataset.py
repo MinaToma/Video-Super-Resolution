@@ -179,7 +179,6 @@ class Vid4TestDataset(data.Dataset):
         frames_hr = cv2.imread(frames_hr_name)
         h, w, ch = frames_hr.shape
 
-        print(frames_hr.shape)
         center_index = idx
 
         frames_lr = np.zeros((self.frame_num, int(h / self.scale), int(w / self.scale), ch))
@@ -192,7 +191,6 @@ class Vid4TestDataset(data.Dataset):
             frames_lr_name = '{}/{}'.format(self.dir_LR, self.img_list[j])
             img = cv2.imread(frames_lr_name)
             frames_lr[i, :, :, :] = img  # t h w c
-            print(img.shape)
 
         sample = {'lr': frames_lr, 'hr': frames_hr}
         sample = self.transform(sample)

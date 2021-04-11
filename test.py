@@ -18,17 +18,19 @@ from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 # Training settings
 parser = argparse.ArgumentParser(description='EDVR GAN Test')
-parser.add_argument('-m', '--model', default="/content/drive/MyDrive/VSR/EDVR/Copy of EDVR_L_x4_SR_Vimeo90K_official-162b54e4.pth", help="Model")
-parser.add_argument('-o', '--output', default='/content/VSR/results/', help="Location to save test results")
-parser.add_argument('-c', '--gpu_mode',default=True, action='store_true', required=False, help="Use a CUDA compatible GPU if available")
+parser.add_argument('--model_folder_path', help="Model folder path")
+parser.add_argument('--model_name', help="Model name")
+parser.add_argument('--output', help="Location to save test results")
+parser.add_argument('--gpu_mode',default=True, action='store_true', required=False, help="Use a CUDA compatible GPU if available")
 parser.add_argument('--testBatchSize', type=int, default=1, help="Testing Batch Size")
 parser.add_argument('--threads', type=int, default=1, help="Dataloader Threads")
 parser.add_argument('--gpus', default=1, type=int, help="How many GPU's to use")
-parser.add_argument('--dataset_name', default='Vid4', help='Location to ground truth frames')
+parser.add_argument('--dataset_name', default='Vid4', help='Dataset name to use')
 parser.add_argument('--gt_dir', help='Location to ground truth frames')
 parser.add_argument('--lr_dir', help='Location to low resolution frames')
-parser.add_argument('--clip_name', help='Location to low resolution frames')
-parser.add_argument('--frame', type=int, default=7, help="")
+parser.add_argument('--clip_name', help='clip name in dataset')
+parser.add_argument('--frame', type=int, default=7, help="number of frames")
+parser.add_argument('--generate_video', action='store_true', help="whether to generate video or not")
 parser.add_argument('-u', '--upscale_only', type=bool, default=False, help="Upscale mode - without downscaling.")
 
 opt = parser.parse_args()
@@ -49,14 +51,14 @@ model = EDVR(num_frame=opt.frame)
 device = torch.device("cuda:0" if cuda and torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
-save_dir = os.path.join(opt.output, opt.dataset_name, opt.clip_name, str(opt.frame))
+save_dir = os.path.join(opt.output, opt.dataset_name, opt.clip_name, str(opt.frame), opt.model_name)
 
 def eval():
     # print EDVR GAN architecture
     # utils.printNetworkArch(netG=model, netD=None)
 
     # load model
-    modelPath = os.path.join(opt.model)
+    modelPath = os.path.join(opt.model_folder_path, opt.model_name)
     utils.loadPreTrainedModel(gpuMode=opt.gpu_mode, model=model, modelPath=modelPath)
     model.eval()
     
@@ -187,5 +189,24 @@ def SSIM(img1, img2):
         ssims.append(_ssim(img1[i, ...], img2[i, ...]))
     return np.array(ssims).mean()
 
+def generateVideo():
+    filenames = [img for img in glob.glob(save_dir + '/*.png')]
+
+    filenames.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
+    img_array = []
+    for filename in filenames:
+        print(filename)
+        img = cv2.imread(filename)
+        img_array.append(img)
+
+    height, width, layers = img_array[0].shape
+    size = (width, height)
+    out = cv2.VideoWriter(save_dir + '/project.avi', cv2.VideoWriter_fourcc(*'DIVX'), 30, size)
+    for i in range(len(img_array)):
+        out.write(img_array[i])
+    out.release()
+
 if __name__ == "__main__":
     eval()
+    if opt.generate_video:
+        generateVideo()
