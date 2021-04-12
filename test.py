@@ -8,6 +8,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import numpy as np
 import utils
+import shutil
 import time
 import cv2
 import math
@@ -55,9 +56,13 @@ model = model.to(device)
 save_dir = os.path.join(opt.output, opt.dataset_name, opt.clip_name, str(opt.frame), opt.model_name)
 
 def eval():
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+    if os.path.exists(save_dir):
+        shutil.rmtree(save_dir) # delete existing folder
+    os.makedirs(save_dir) # create empty directory
 
+    # save results to file
+    f = open(save_dir + "/results.txt", "a")
+    
     # print EDVR GAN architecture
     # utils.printNetworkArch(netG=model, netD=None)
 
@@ -86,6 +91,8 @@ def eval():
 
         t1 = time.time()
         print("==> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0)))
+        # write to file
+        f.write("==> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0))  + "\n")
         if opt.save_image:
             save_img(prediction.cpu().data, count)
 
@@ -102,12 +109,20 @@ def eval():
             avg_ssim_predicted += ssim_predicted
             print("PSNR Predicted = ", psnr_predicted)
             print("SSIM Predicted = ", ssim_predicted)
+            # write to file
+            f.write("PSNR Predicted = " + str(psnr_predicted) + "\n")
+            f.write("SSIM Predicted = " + str(ssim_predicted) + "\n")
             
         count += 1
     
     if not opt.upscale_only:
         print("Avg PSNR Predicted = ", avg_psnr_predicted / count)
         print("Avg SSIM Predicted = ", avg_ssim_predicted / count)
+        # write to file
+        f.write("Avg PSNR Predicted = " + str(avg_psnr_predicted / count) +  "\n")
+        f.write("Avg SSIM Predicted = " + str(avg_ssim_predicted / count) + "\n")
+    f.close()
+        
 
 def save_img(img, count):
     save_img = img.squeeze().clamp(0, 1).numpy().transpose(1, 2, 0)
