@@ -31,6 +31,7 @@ parser.add_argument('--lr_dir', help='Location to low resolution frames')
 parser.add_argument('--clip_name', help='clip name in dataset')
 parser.add_argument('--frame', type=int, default=7, help="number of frames")
 parser.add_argument('--generate_video', action='store_true', help="whether to generate video or not")
+parser.add_argument('--save_image', action='store_true', help="whether to save output image or not")
 parser.add_argument('-u', '--upscale_only', type=bool, default=False, help="Upscale mode - without downscaling.")
 
 opt = parser.parse_args()
@@ -54,6 +55,9 @@ model = model.to(device)
 save_dir = os.path.join(opt.output, opt.dataset_name, opt.clip_name, str(opt.frame), opt.model_name)
 
 def eval():
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
     # print EDVR GAN architecture
     # utils.printNetworkArch(netG=model, netD=None)
 
@@ -82,7 +86,8 @@ def eval():
 
         t1 = time.time()
         print("==> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0)))
-        save_img(prediction.cpu().data, count)
+        if opt.save_image:
+            save_img(prediction.cpu().data, count)
 
         prediction = prediction.cpu()
         prediction = prediction.data[0].numpy().astype(np.float32)
@@ -106,9 +111,6 @@ def eval():
 
 def save_img(img, count):
     save_img = img.squeeze().clamp(0, 1).numpy().transpose(1, 2, 0)
-
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
 
     save_fn = save_dir + '/' +  str(count).zfill(8) + '.png'
     cv2.imwrite(save_fn, save_img * 255, [cv2.IMWRITE_PNG_COMPRESSION, 0])

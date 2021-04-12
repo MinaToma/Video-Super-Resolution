@@ -1,0 +1,129 @@
+Using GPU mode
+==> Loading datasets
+==> Building model 
+Pre-trained SR model loaded from: /content/drive/MyDrive/Weights EDVR/EDVR_L_x4_SR_REDS_official-9f5f5039_5.pth
+==> Processing: 0 || Timer: 0.1602 sec.
+PSNR Predicted =  21.444971068434313
+SSIM Predicted =  0.751876375702721
+==> Processing: 1 || Timer: 0.0697 sec.
+PSNR Predicted =  21.590165628250343
+SSIM Predicted =  0.7616514005286419
+==> Processing: 2 || Timer: 0.0685 sec.
+PSNR Predicted =  21.61513318988583
+SSIM Predicted =  0.7647843822824615
+==> Processing: 3 || Timer: 0.0693 sec.
+PSNR Predicted =  21.676129056365774
+SSIM Predicted =  0.7655859728902747
+==> Processing: 4 || Timer: 0.0696 sec.
+PSNR Predicted =  21.730647485863813
+SSIM Predicted =  0.765209367272457
+==> Processing: 5 || Timer: 0.0696 sec.
+PSNR Predicted =  21.70252046936364
+SSIM Predicted =  0.7641449506047576
+==> Processing: 6 || Timer: 0.0694 sec.
+PSNR Predicted =  21.697178183216316
+SSIM Predicted =  0.763317417486817
+==> Processing: 7 || Timer: 0.0699 sec.
+PSNR Predicted =  21.727410671646012
+SSIM Predicted =  0.7646174635285959
+==> Processing: 8 || Timer: 0.0695 sec.
+PSNR Predicted =  21.72118450500514
+SSIM Predicted =  0.7637118123297636
+==> Processing: 9 || Timer: 0.0699 sec.
+PSNR Predicted =  21.712812045561414
+SSIM Predicted =  0.762057002811643
+==> Processing: 10 || Timer: 0.0702 sec.
+PSNR Predicted =  21.69062243729961
+SSIM Predicted =  0.7613615570074389
+==> Processing: 11 || Timer: 0.0706 sec.
+PSNR Predicted =  21.71941744810223
+SSIM Predicted =  0.7617681705463349
+==> Processing: 12 || Timer: 0.0703 sec.
+PSNR Predicted =  21.7700732017687
+SSIM Predicted =  0.7639521159741997
+==> Processing: 13 || Timer: 0.0678 sec.
+PSNR Predicted =  21.861643598455217
+SSIM Predicted =  0.7663394867798639
+==> Processing: 14 || Timer: 0.0699 sec.
+PSNR Predicted =  21.864210212415117
+SSIM Predicted =  0.7663818674188874
+==> Processing: 15 || Timer: 0.0697 sec.
+PSNR Predicted =  21.882919950758666
+SSIM Predicted =  0.7661742022164829
+==> Processing: 16 || Timer: 0.0702 sec.
+PSNR Predicted =  21.96432472004266
+SSIM Predicted =  0.768529942392061
+==> Processing: 17 || Timer: 0.0704 sec.
+PSNR Predicted =  21.90188307632441
+SSIM Predicted =  0.7670685407068589
+==> Processing: 18 || Timer: 0.0691 sec.
+PSNR Predicted =  21.90099886485676
+SSIM Predicted =  0.7680380041496725
+==> Processing: 19 || Timer: 0.0700 sec.
+PSNR Predicted =  21.913252059487654
+SSIM Predicted =  0.7678177258166797
+==> Processing: 20 || Timer: 0.0701 sec.
+PSNR Predicted =  21.978858444870582
+SSIM Predicted =  0.7701721560708729
+==> Processing: 21 || Timer: 0.0701 sec.
+PSNR Predicted =  21.87291041641753
+SSIM Predicted =  0.7683332324269352
+==> Processing: 22 || Timer: 0.0707 sec.
+PSNR Predicted =  21.761558962617244
+SSIM Predicted =  0.7637049636506048
+==> Processing: 23 || Timer: 0.0697 sec.
+PSNR Predicted =  21.890566457199576
+SSIM Predicted =  0.7685864948248474
+==> Processing: 24 || Timer: 0.0699 sec.
+PSNR Predicted =  21.938018695535003
+SSIM Predicted =  0.7686676108662661
+==> Processing: 25 || Timer: 0.0698 sec.
+PSNR Predicted =  21.898865183021474
+SSIM Predicted =  0.7687887519107445
+==> Processing: 26 || Timer: 0.0699 sec.
+PSNR Predicted =  21.793103207443462
+SSIM Predicted =  0.7661437242757704
+==> Processing: 27 || Timer: 0.0695 sec.
+PSNR Predicted =  21.817378947369672
+SSIM Predicted =  0.7667807480909131
+==> Processing: 28 || Timer: 0.0712 sec.
+PSNR Predicted =  21.812352980398142
+SSIM Predicted =  0.7682442491184153
+==> Processing: 29 || Timer: 0.0705 sec.
+PSNR Predicted =  21.80067143512954
+SSIM Predicted =  0.7684186012566991
+==> Processing: 30 || Timer: 0.0728 sec.
+PSNR Predicted =  21.83564745779823
+SSIM Predicted =  0.7697999516979616
+==> Processing: 31 || Timer: 0.0702 sec.
+PSNR Predicted =  21.840733168500684
+SSIM Predicted =  0.7703879273733767
+==> Processing: 32 || Timer: 0.0702 sec.
+PSNR Predicted =  21.762581001593418
+SSIM Predicted =  0.7688770939894902
+==> Processing: 33 || Timer: 0.0696 sec.
+PSNR Predicted =  21.824713184622944
+SSIM Predicted =  0.7698289755055533
+==> Processing: 34 || Timer: 0.0705 sec.
+PSNR Predicted =  21.79158406152139
+SSIM Predicted =  0.7684411571729575
+==> Processing: 35 || Timer: 0.0654 sec.
+PSNR Predicted =  21.82769145744473
+SSIM Predicted =  0.7686491645402707
+==> Processing: 36 || Timer: 0.0701 sec.
+PSNR Predicted =  21.915299999893417
+SSIM Predicted =  0.7704417364158331
+==> Processing: 37 || Timer: 0.0704 sec.
+PSNR Predicted =  21.953677261303326
+SSIM Predicted =  0.7718819369968509
+==> Processing: 38 || Timer: 0.0722 sec.
+PSNR Predicted =  21.910542066221307
+SSIM Predicted =  0.770425798545674
+==> Processing: 39 || Timer: 0.0702 sec.
+PSNR Predicted =  21.834798707658628
+SSIM Predicted =  0.7676873698835784
+==> Processing: 40 || Timer: 0.0697 sec.
+PSNR Predicted =  21.59906667195511
+SSIM Predicted =  0.758262117218893
+Avg PSNR Predicted =  21.798734576624852
+Avg SSIM Predicted =  0.7662661346409544
