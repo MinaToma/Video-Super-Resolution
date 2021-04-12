@@ -16,10 +16,44 @@ def get_test_set(opt):
         return REDSTestDataset(opt)
     return Vid4TestDataset(opt)
 
+class Patcher(object):
+    def __call__(self, sample):
+      img_lqs, img_gts, gt_patch_size = sample['lr'], sample['hr'], sample['patch_size']
+
+      scale = 4
+      num, h_lq, w_lq, ch = img_lqs.shape
+      h_gt, w_gt, _ = img_gts.shape
+      lq_patch_size = gt_patch_size // scale
+
+      if h_gt != h_lq * scale or w_gt != w_lq * scale:
+          raise ValueError(
+              f'Scale mismatches. GT ({h_gt}, {w_gt}) is not {scale}x ',
+              f'multiplication of LQ ({h_lq}, {w_lq}).')
+      if h_lq < lq_patch_size or w_lq < lq_patch_size:
+          raise ValueError(f'LQ ({h_lq}, {w_lq}) is smaller than patch size '
+                          f'({lq_patch_size}, {lq_patch_size}). '
+                          f'Please remove {gt_path}.')
+
+      # randomly choose top and left coordinates for lq patch
+      top = random.randint(0, h_lq - lq_patch_size)
+      left = random.randint(0, w_lq - lq_patch_size)
+
+      # crop lq patch
+      frames_lr = np.zeros((num, lq_patch_size, lq_patch_size, ch))
+      for idx in range(num):
+          frames_lr[idx, :, :, :] = img_lqs[idx, top:top + lq_patch_size, left:left + lq_patch_size, ...]
+
+      # crop corresponding gt patch
+      top_gt, left_gt = int(top * scale), int(left * scale)
+      img_gts = img_gts[top_gt:top_gt + gt_patch_size, left_gt:left_gt + gt_patch_size, ...]
+       
+      return {'lr': frames_lr, 'hr': img_gts}
+
 class DataAug(object):
     def __call__(self, sample):
         hflip = random.random() < 0.5
         vflip = random.random() < 0.5
+        rot90 = random.random() < 0.5
 
         lr, hr = sample['lr'], sample['hr']
         num, r, c, ch = lr.shape
@@ -32,6 +66,10 @@ class DataAug(object):
             hr = hr[::-1, :, :]
             for idx in range(num):
                 lr[idx, :, :, :] = lr[idx, ::-1, :, :]
+        
+        if rot90:
+            hr = hr.transpose(1, 0, 2)
+            lr = lr.transpose(0, 2, 1, 3)
         
         return {'lr': lr, 'hr': hr}
 
@@ -51,9 +89,10 @@ class REDSTrainDataset(data.Dataset):
         self.frame_num = opt.frame
         self.half_frame_num = int(self.frame_num / 2)
         if opt.data_augmentation:
-            self.transform = Compose([DataAug(), ToTensor()])
+            self.transform = Compose([Patcher(), DataAug(), ToTensor()])
         else:
             self.transform = Compose([ToTensor()])
+        self.patch_size = opt.patch_size
         self.scale = 4
         self.len = len(self.dir_lis) * len(self.img_list)
 
@@ -78,7 +117,7 @@ class REDSTrainDataset(data.Dataset):
             img = cv2.imread(frames_lr_name)
             frames_lr[i, :, :, :] = img  # t h w c
 
-        sample = {'lr': frames_lr, 'hr': frames_hr}
+        sample = {'lr': frames_lr, 'hr': frames_hr, 'patch_size': self.patch_size}
         sample = self.transform(sample)
 
         return sample['lr'], sample['hr']
@@ -129,9 +168,10 @@ class Vemo90KTrainDataset(data.Dataset):
         self.frame_num = opt.frame
         self.half_frame_num = int(self.frame_num / 2)
         if opt.data_augmentation:
-            self.transform = Compose([DataAug(), ToTensor()])
+            self.transform = Compose([Patcher(), DataAug(), ToTensor()])
         else:
             self.transform = Compose([ToTensor()])
+        self.patch_size = opt.patch_size
         self.scale = 4
         self.len = len(self.folder_list)
 
@@ -155,7 +195,7 @@ class Vemo90KTrainDataset(data.Dataset):
             img = cv2.imread(frames_lr_name)
             frames_lr[i, :, :, :] = img  # t h w c
 
-        sample = {'lr': frames_lr, 'hr': frames_hr}
+        sample = {'lr': frames_lr, 'hr': frames_hr, 'patch_size': self.patch_size}
         sample = self.transform(sample)
 
         return sample['lr'], sample['hr']

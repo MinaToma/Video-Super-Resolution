@@ -18,7 +18,7 @@ from torchvision.transforms import Compose, ToTensor
 
 # Handle command line arguments
 parser = argparse.ArgumentParser(description='Train EDRV GAN: Super Resolution Models')
-parser.add_argument('--batchSize', type=int, default=4, help='training batch size')
+parser.add_argument('--batchSize', type=int, default=2, help='training batch size')
 parser.add_argument('--start_epoch', type=int, default=1, help='Starting epoch for continuing training')
 parser.add_argument('--nEpochs', type=int, default=150, help='number of epochs to train for')
 parser.add_argument('--snapshots', type=int, default=1, help='Snapshots')
@@ -29,6 +29,7 @@ parser.add_argument('--gpus', default=8, type=int, help='number of gpu')
 parser.add_argument('--frame', type=int, default=7)
 parser.add_argument('--data_augmentation', type=bool, default=True)
 parser.add_argument('--pretrained_sr', help='sr pretrained base model')
+parser.add_argument('--patch_size', type=int, default=256, help='patch of gt, 0 to use original frame size')
 parser.add_argument('--pretrained_dis', help='sr pretrained base model')
 parser.add_argument('--file_list', help='sr pretrained base model')
 parser.add_argument('--pretrained', action='store_true', help='Use pretrained model')
