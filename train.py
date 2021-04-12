@@ -37,10 +37,39 @@ parser.add_argument('--output', default='/content/out', help='Location to save c
 parser.add_argument('--dataset_name', default='vemo90k', help='Location to ground truth frames')
 parser.add_argument('--gt_dir', help='Location to ground truth frames')
 parser.add_argument('--lr_dir', help='Location to low resolution frames')
-parser.add_argument('--loss', default='', help='Location to low resolution frames')
+parser.add_argument('--mse_loss', type=float, default=1.0)
+parser.add_argument('--adversarial_loss', type=float, default=0.001)
+parser.add_argument('--perception_loss', type=float, default=0.006)
+parser.add_argument('--tv_loss', type=float, default=2e-8)
+parser.add_argument('--charbonnier_loss', type=float, default=0.0)
 
 opt = parser.parse_args()
-save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame))
+loss_name = ''
+
+print('=========================LOSS=========================================')
+if opt.perception_loss != 0.0:
+  loss_name += 'perception_loss_' + str(opt.perception_loss) + '_'
+  print("Uses perception_loss with weight: " + str(opt.perception_loss))
+
+if opt.mse_loss != 0.0:
+  loss_name += 'mse_loss_' + str(opt.mse_loss) + '_'
+  print("Uses mse_loss with weight: " + str(opt.mse_loss))
+
+if opt.tv_loss != 0.0:
+  loss_name += 'tv_loss_' + str(opt.tv_loss) + '_'
+  print("Uses tv_loss with weight: " + str(opt.tv_loss))
+
+if opt.charbonnier_loss != 0.0:
+  loss_name += 'charbonnier_loss_' + str(opt.charbonnier_loss) + '_'
+  print("Uses charbonnier_loss with weight: " + str(opt.charbonnier_loss))
+
+if opt.adversarial_loss != 0.0:
+  loss_name += 'adversarial_loss_' + str(opt.adversarial_loss) + '_'
+  print("Uses adversarial_loss with weight: " + str(opt.adversarial_loss))
+
+save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame), loss_name)
+print('save dir: ', save_dir)
+
 
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
@@ -169,7 +198,6 @@ def main():
         start_epoch += 1
 
     for epoch in range(start_epoch, start_epoch + opt.nEpochs):
-        print("cur ep " + str(epoch))
         runningResults = trainModel(epoch, start_epoch + opt.nEpochs - 1, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt)
 
         if epoch % (opt.snapshots) == 0:

@@ -6,29 +6,46 @@ import torch.nn.functional as F
 from torchvision.models import vgg16
 
 def get_loss_function(opt):
-    return GeneratorLoss()
+    return GeneratorLoss(opt)
 
 class GeneratorLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, opt):
         super(GeneratorLoss, self).__init__()
         vgg = vgg16(pretrained=True)
         loss_network = nn.Sequential(*list(vgg.features)[:31]).eval()
         for param in loss_network.parameters():
             param.requires_grad = False
+        
         self.loss_network = loss_network
         self.mse_loss = nn.MSELoss()
         self.tv_loss = TVLoss()
+        self.charbonnier_loss = CharbonnierLoss()
+        
+        self.opt = opt
 
     def forward(self, out_labels, out_images, target_images):
+        loss = 0.0
+        
         # Adversarial Loss
-        adversarial_loss = torch.mean(1 - out_labels)
+        if self.opt.adversarial_loss != 0.0:
+          loss += self.opt.adversarial_loss * torch.mean(1 - out_labels)
+        
         # Perception Loss
-        perception_loss = self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))
+        if self.opt.perception_loss != 0.0:
+            loss += self.opt.perception_loss * self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))
+        
         # Image Loss
-        image_loss = self.mse_loss(out_images, target_images)
+        if self.opt.mse_loss != 0.0:
+            loss += self.opt.mse_loss * self.mse_loss(out_images, target_images)
+        
         # TV Loss
-        tv_loss = self.tv_loss(out_images)
-        return image_loss + 0.001 * adversarial_loss + 0.006 * perception_loss + 2e-8 * tv_loss
+        if self.opt.tv_loss != 0.0:
+            loss += self.opt.tv_loss * self.tv_loss(out_images)
+
+        if self.opt.charbonnier_loss != 0.0:
+            loss += self.opt.charbonnier_loss * self.charbonnier_loss(out_images, target_images)
+
+        return loss
 
 
 class TVLoss(nn.Module):
