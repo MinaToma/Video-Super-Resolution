@@ -135,20 +135,31 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
 
     return runningResults
 
-def saveModelParams(epoch, runningResults, netG, netD, opt):
-    results = {'DLoss': [], 'GLoss': [], 'DScore': [], 'GScore': [], 'PSNR': [], 'SSIM': []}
-
+def saveModelParams(epoch, results, netG, netD, opt):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     gen_save_path = save_dir + '/' + opt.gen_model_name + '_' + str(epoch) + '.pth'
     dis_save_path = save_dir + '/' + opt.dis_model_name + '_' + str(epoch) + '.pth'
+    
     # Save model parameters
-    torch.save(netG.state_dict(), gen_save_path)
-    torch.save(netD.state_dict(), dis_save_path)
+    if epoch % (opt.snapshots) == 0:
+        torch.save(netG.state_dict(), gen_save_path)
+        torch.save(netD.state_dict(), dis_save_path)
+        print("Checkpoint saved to {}".format(gen_save_path))
+        print("Checkpoint saved to {}".format(dis_save_path))
 
-    print("Checkpoint saved to {}".format(gen_save_path))
-    print("Checkpoint saved to {}".format(dis_save_path))
+    csv_path = save_dir + '/train_results.csv'
+    header = epoch == 1
+    if epoch == 1 and os.path.exists(csv_path):
+      os.remove(csv_path)
+
+    data_frame = pd.DataFrame(data={'DLoss': results['DLoss'] / results['batchSize'],
+                                     'GLoss': results['GLoss'] / results['batchSize'],
+                                    'DScore': results['DScore'] / results['batchSize'],
+                                    'GScore': results['GScore'] / results['batchSize']},
+                                     index=range(epoch, epoch + 1))
+    data_frame.to_csv(csv_path, mode='a', index_label='Epoch', header=header)
 
 def main():
     """ Lets begin the training process! """
@@ -199,9 +210,7 @@ def main():
 
     for epoch in range(start_epoch, start_epoch + opt.nEpochs):
         runningResults = trainModel(epoch, start_epoch + opt.nEpochs - 1, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt)
-
-        if epoch % (opt.snapshots) == 0:
-            saveModelParams(epoch, runningResults, netG, netD, opt)
+        saveModelParams(epoch, runningResults, netG, netD, opt)
 
 if __name__ == "__main__":
     main()
