@@ -71,7 +71,7 @@ class TVLoss(nn.Module):
 class CharbonnierLoss(torch.nn.Module):
     def __init__(self):
         super(CharbonnierLoss, self).__init__()
-        self.eps = 1e-12
+        self.eps = 1e-3
 
     def forward(self, x, y):
         diff = torch.add(x, -y)
