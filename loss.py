@@ -15,7 +15,7 @@ class GeneratorLoss(nn.Module):
         loss_network = nn.Sequential(*list(vgg.features)[:31]).eval()
         for param in loss_network.parameters():
             param.requires_grad = False
-        
+        self.adversarial_loss = nn.BCEWithLogitsLoss()
         self.loss_network = loss_network
         self.mse_loss = nn.MSELoss()
         self.tv_loss = TVLoss()
@@ -23,12 +23,16 @@ class GeneratorLoss(nn.Module):
         
         self.opt = opt
 
-    def forward(self, out_labels, out_images, target_images):
+    def forward(self, out_labels, out_images, target_images, target_is_real, is_disc):
         loss = 0.0
         
         # Adversarial Loss
         if self.opt.adversarial_loss != 0.0:
-          loss += self.opt.adversarial_loss * torch.mean(1 - out_labels)
+          target_label = out_labels.new_ones(out_labels.size()) * target_is_real
+          if is_disc:
+            return self.adversarial_loss(out_labels, target_label)
+          else:
+            loss += self.opt.adversarial_loss * self.adversarial_loss(out_labels, target_label)
         
         # Perception Loss
         if self.opt.perception_loss != 0.0:

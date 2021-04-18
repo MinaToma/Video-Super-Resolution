@@ -70,7 +70,15 @@ if opt.adversarial_loss != 0.0:
 save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame), loss_name)
 print('save dir: ', save_dir)
 
+ganLoss = nn.BCEWithLogitsLoss()
 
+def getGanLoss(input, target_is_real, is_disc=False):
+    target_label = input.new_ones(input.size()) * target_is_real
+    if is_disc:
+      return ganLoss(input, target_label)
+    else:
+      return 1 * ganLoss(input, target_label)
+        
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
     runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0}
@@ -88,37 +96,47 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         input = input.to(device)
         target = target.to(device)
 
-        ################################################################################################################
-        # (1) Update D network: maximize D(x)-1-D(G(z))
-        ################################################################################################################
+        # disable update for discriminator
+        for p in netD.parameters():
+            p.requires_grad = False
 
-        DLoss = 0
-        netD.zero_grad()
-
-        fakeHR = netG(input)
-        realOut = netD(target).mean()
-        fakeOut = netD(fakeHR).mean()
-
-        DLoss += 1 - realOut + fakeOut
-        DLoss.backward(retain_graph=True)
-        optimizerD.step()
-
-        ################################################################################################################
-        # (2) Update G network: minimize 1-D(G(z)) + Perception Loss + Image Loss + TV Loss
-        ################################################################################################################
         netG.zero_grad()
 
-        fakeOut = netD(fakeHR).mean()
-        GLoss = generatorCriterion(fakeOut, fakeHR, target)
-        GLoss.backward()
+        output = netG(input)    
+        real_d_pred = netD(target).detach()
+        fake_g_pred = netD(output)
+        l_g_real = getGanLoss(
+            real_d_pred - torch.mean(fake_g_pred), False, is_disc=False)
+        l_g_fake = getGanLoss(
+            fake_g_pred - torch.mean(real_d_pred), True, is_disc=False)
+        l_g_gan = (l_g_real + l_g_fake) / 2
+
+        l_g_gan.backward()
         optimizerG.step()
 
-        fakeHR = netG(input)
-        fakeOut = netD(fakeHR).mean()
-        runningResults['GLoss'] += GLoss.item() * batchSize
-        runningResults['DLoss'] += DLoss.item() * batchSize
-        runningResults['DScore'] += realOut.item() * batchSize
-        runningResults['GScore'] += fakeOut.item() * batchSize
+        # enable update for discriminator
+        for p in netD.parameters():
+            p.requires_grad = True
+
+       # real
+        fake_d_pred = netD(output).detach()
+        real_d_pred = netD(target)
+        l_d_real = getGanLoss(
+            real_d_pred - torch.mean(fake_d_pred), True, is_disc=True) * 0.5
+        l_d_real.backward()
+        # fake
+        fake_d_pred = netD(output.detach())
+        l_d_fake = getGanLoss(
+            fake_d_pred - torch.mean(real_d_pred.detach()),
+            False,
+            is_disc=True) * 0.5
+        l_d_fake.backward()
+        optimizerD.step()
+
+        runningResults['GLoss'] += l_g_gan.item() * batchSize
+        runningResults['DLoss'] += (l_d_fake.item() + l_d_real.item())  * batchSize
+        runningResults['DScore'] += torch.mean(real_d_pred.detach()).mean().item() * batchSize
+        runningResults['GScore'] += torch.mean(fake_d_pred.detach()).mean().item() * batchSize
 
         trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
