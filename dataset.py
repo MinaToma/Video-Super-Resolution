@@ -260,7 +260,6 @@ class Vid4ValidationDataset():
         center_index = idx
 
         frames_hr_name = '{}/{}'.format(hr_folder_path, str("%08d" % (center_index) + '.png'))
-        print('frames_hr_name,=', frames_hr_name)
         frames_hr = cv2.imread(frames_hr_name)
         h, w, ch = frames_hr.shape
 
