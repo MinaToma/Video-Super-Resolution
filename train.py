@@ -13,6 +13,7 @@ import utils
 from model import EDVR
 from dataset import get_training_set
 from loss import get_loss_function
+from validate import validate_model
 from torchvision.transforms import Compose, ToTensor
 
 
@@ -73,7 +74,7 @@ print('save dir: ', save_dir)
 
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
-    runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0}
+    runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0, 'PSNR': 0, 'SSIM': 0}
 
     netG.train()
     netD.train()
@@ -126,6 +127,9 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                                        runningResults['DScore'] / runningResults['batchSize'],
                                        runningResults['GScore'] / runningResults['batchSize']))
         gc.collect()
+        
+        # Validate Generator       
+        runningResults['PSNR'], runningResults['SSIM'] = validate_model(netG, epoch, tot_epoch)
 
     # learning rate is decayed by a factor of 10 every half of total epochs
     if epoch % 10 == 0:
