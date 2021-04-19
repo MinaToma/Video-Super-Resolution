@@ -67,11 +67,12 @@ if opt.adversarial_loss != 0.0:
   loss_name += 'adversarial_loss_' + str(opt.adversarial_loss) + '_'
   print("Uses adversarial_loss with weight: " + str(opt.adversarial_loss))
 
+loss_name = 'esrganLoss_1e-3_mse'
 save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame), loss_name)
 print('save dir: ', save_dir)
 
 ganLoss = nn.BCEWithLogitsLoss()
-
+mseLoss = nn.MSELoss()
 def getGanLoss(input, target_is_real, is_disc=False):
     target_label = input.new_ones(input.size()) * target_is_real
     if is_disc:
@@ -81,7 +82,7 @@ def getGanLoss(input, target_is_real, is_disc=False):
         
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
-    runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0}
+    runningResults = {'batchSize': 0, 'DLoss': 0, 'TLoss': 0, 'GLoss': 0, 'MSELoss': 0, 'DScore': 0, 'GScore': 0}
 
     netG.train()
     netD.train()
@@ -110,8 +111,8 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         l_g_fake = getGanLoss(
             fake_g_pred - torch.mean(real_d_pred), True, is_disc=False)
         l_g_gan = (l_g_real + l_g_fake) / 2
-
-        l_g_gan.backward()
+        l_g_tot = l_g_gan + mseLoss(output, target)
+        l_g_tot.backward()
         optimizerG.step()
 
         # enable update for discriminator
@@ -133,14 +134,18 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         l_d_fake.backward()
         optimizerD.step()
 
+        runningResults['TLoss'] += l_g_tot.item() * batchSize
         runningResults['GLoss'] += l_g_gan.item() * batchSize
+        runningResults['MSELoss'] += runningResults['TLoss'] - runningResults['GLoss']
         runningResults['DLoss'] += (l_d_fake.item() + l_d_real.item())  * batchSize
         runningResults['DScore'] += torch.mean(real_d_pred.detach()).mean().item() * batchSize
         runningResults['GScore'] += torch.mean(fake_d_pred.detach()).mean().item() * batchSize
 
-        trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
+        trainBar.set_description(desc='[Epoch: %d/%d] DLoss: %.20f TLoss: %.20f GLoss: %.20f MSELoss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
+                                       runningResults['TLoss'] / runningResults['batchSize'],
                                        runningResults['GLoss'] / runningResults['batchSize'],
+                                       runningResults['MSELoss'] / runningResults['batchSize'],
                                        runningResults['DScore'] / runningResults['batchSize'],
                                        runningResults['GScore'] / runningResults['batchSize']))
         gc.collect()
@@ -173,7 +178,9 @@ def saveModelParams(epoch, results, netG, netD, opt):
       os.remove(csv_path)
 
     data_frame = pd.DataFrame(data={'DLoss': results['DLoss'] / results['batchSize'],
+                                     'GLoss': results['TLoss'] / results['batchSize'],
                                      'GLoss': results['GLoss'] / results['batchSize'],
+                                     'GLoss': results['MSELoss'] / results['batchSize'],
                                     'DScore': results['DScore'] / results['batchSize'],
                                     'GScore': results['GScore'] / results['batchSize']},
                                      index=range(epoch, epoch + 1))
