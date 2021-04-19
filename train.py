@@ -78,7 +78,7 @@ def getGanLoss(input, target_is_real, is_disc=False):
     if is_disc:
       return ganLoss(input, target_label)
     else:
-      return 1 * ganLoss(input, target_label)
+      return 1e-3 * ganLoss(input, target_label)
         
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
