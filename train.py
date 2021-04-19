@@ -121,15 +121,17 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         runningResults['DScore'] += realOut.item() * batchSize
         runningResults['GScore'] += fakeOut.item() * batchSize
 
-        trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
+        # Validate Generator       
+        runningResults['PSNR'], runningResults['SSIM'] = validate_model(netG)
+        trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f PSNR: %.20f SSIM: %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
                                        runningResults['GLoss'] / runningResults['batchSize'],
                                        runningResults['DScore'] / runningResults['batchSize'],
-                                       runningResults['GScore'] / runningResults['batchSize']))
+                                       runningResults['GScore'] / runningResults['batchSize'],
+                                       runningResults['PSNR'] / runningResults['batchSize'], 
+                                       runningResults['SSIM'] / runningResults['batchSize']))
         gc.collect()
         
-        # Validate Generator       
-        runningResults['PSNR'], runningResults['SSIM'] = validate_model(netG, epoch, tot_epoch)
 
     # learning rate is decayed by a factor of 10 every half of total epochs
     if epoch % 10 == 0:
@@ -159,9 +161,11 @@ def saveModelParams(epoch, results, netG, netD, opt):
       os.remove(csv_path)
 
     data_frame = pd.DataFrame(data={'DLoss': results['DLoss'] / results['batchSize'],
-                                     'GLoss': results['GLoss'] / results['batchSize'],
+                                    'GLoss': results['GLoss'] / results['batchSize'],
                                     'DScore': results['DScore'] / results['batchSize'],
-                                    'GScore': results['GScore'] / results['batchSize']},
+                                    'GScore': results['GScore'] / results['batchSize'],
+                                    'PSNR': results['PSNR'] / results['batchSize'], 
+                                    'SSIM': results['SSIM'] / results['batchSize']},
                                      index=range(epoch, epoch + 1))
     data_frame.to_csv(csv_path, mode='a', index_label='Epoch', header=header)
 

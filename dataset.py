@@ -256,13 +256,11 @@ class REDSKValidationDataset():
 
     def __getitem__(self, idx):
         folder_name = self.folder_list[idx]
-        print("folder name", folder_name)
         hr_folder_path = '{}/{}'.format(self.dir_HR, folder_name)
 
         center_index = idx
 
         frames_hr_name = '{}/{}'.format(hr_folder_path, str("%08d" % (center_index,) + '.png'))
-        print("Frame Name: ", frames_hr_name)
         frames_hr = cv2.imread(frames_hr_name)
         h, w, ch = frames_hr.shape
 
