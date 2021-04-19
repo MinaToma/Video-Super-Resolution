@@ -237,8 +237,48 @@ class Vid4TestDataset(data.Dataset):
 
         return sample['lr'], sample['hr']
 
+class Vid4ValidationDataset():
+    def __init__(self):
+        self.dir_HR = '/content/drive/MyDrive/datasets/test/Vid4/GT'
+        self.dir_LR = '/content/drive/MyDrive/datasets/test/Vid4/BIx4'
+        alist = [line.rstrip() for line in open('/content/drive/MyDrive/datasets/test/Vid4/folder_list.txt')]
+        self.folder_list = [x for x in alist]
+        self.frame_num = 5
+        self.half_frame_num = int(self.frame_num / 2)
+        self.transform = Compose([ToTensor()])
+        self.patch_size = 256
+        self.scale = 4
+        self.len = len(self.folder_list)
 
-class REDSKValidationDataset():
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        folder_name = self.folder_list[idx]
+        hr_folder_path = '{}/{}'.format(self.dir_HR, folder_name)
+
+        center_index = idx
+
+        frames_hr_name = '{}/{}'.format(hr_folder_path, str("%08d" % (center_index) + '.png'))
+        print('frames_hr_name,=', frames_hr_name)
+        frames_hr = cv2.imread(frames_hr_name)
+        h, w, ch = frames_hr.shape
+
+        frames_lr = np.zeros((self.frame_num, int(h / self.scale), int(w / self.scale), ch))
+        for j in range(center_index - self.half_frame_num, center_index + self.half_frame_num + 1):
+            i = j - center_index + self.half_frame_num
+            frames_lr_name = '{}/{}/{}'.format(self.dir_LR, folder_name, 'im' + str(j) + '.png')
+            img = cv2.imread(frames_lr_name)
+            frames_lr[i, :, :, :] = img  # t h w c
+
+        sample = {'lr': frames_lr, 'hr': frames_hr, 'patch_size': self.patch_size}
+        sample = self.transform(sample)
+
+        return sample['lr'], sample['hr']
+
+
+
+class REDSValidationDataset():
     def __init__(self):
         self.dir_HR = '/content/drive/MyDrive/datasets/test/REDS4/GT'
         self.dir_LR = '/content/drive/MyDrive/datasets/test/REDS4/sharp_bicubic'
@@ -256,13 +296,11 @@ class REDSKValidationDataset():
 
     def __getitem__(self, idx):
         folder_name = self.folder_list[idx]
-        print("folder name", folder_name)
         hr_folder_path = '{}/{}'.format(self.dir_HR, folder_name)
 
         center_index = idx
 
-        frames_hr_name = '{}/{}'.format(hr_folder_path, str("%08d" % (center_index,) + '.png'))
-        print("Frame Name: ", frames_hr_name)
+        frames_hr_name = '{}/{}'.format(hr_folder_path, str("%08d" % (center_index) + '.png'))
         frames_hr = cv2.imread(frames_hr_name)
         h, w, ch = frames_hr.shape
 
