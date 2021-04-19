@@ -266,7 +266,7 @@ class Vid4ValidationDataset():
         frames_lr = np.zeros((self.frame_num, int(h / self.scale), int(w / self.scale), ch))
         for j in range(center_index - self.half_frame_num, center_index + self.half_frame_num + 1):
             i = j - center_index + self.half_frame_num
-            frames_lr_name = '{}/{}/{}'.format(self.dir_LR, folder_name, 'im' + str(j) + '.png')
+            frames_lr_name = '{}/{}/{}'.format(self.dir_LR, folder_name, str("%08d" % (center_index) + '.png'))
             img = cv2.imread(frames_lr_name)
             frames_lr[i, :, :, :] = img  # t h w c
 
@@ -306,7 +306,7 @@ class REDSValidationDataset():
         frames_lr = np.zeros((self.frame_num, int(h / self.scale), int(w / self.scale), ch))
         for j in range(center_index - self.half_frame_num, center_index + self.half_frame_num + 1):
             i = j - center_index + self.half_frame_num
-            frames_lr_name = '{}/{}/{}'.format(self.dir_LR, folder_name, 'im' + str(j) + '.png')
+            frames_lr_name = '{}/{}/{}'.format(self.dir_LR, folder_name, str("%08d" % (center_index) + '.png'))
             img = cv2.imread(frames_lr_name)
             frames_lr[i, :, :, :] = img  # t h w c
 

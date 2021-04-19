@@ -74,7 +74,8 @@ print('save dir: ', save_dir)
 
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
-    runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0, 'PSNR': 0, 'SSIM': 0}
+    runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0,
+                      'REDS_PSNR': 0, 'REDS_SSIM': 0, 'Vid4_PSNR': 0, 'Vid4_SSIM': 0}
 
     netG.train()
     netD.train()
@@ -121,16 +122,17 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         runningResults['DScore'] += realOut.item() * batchSize
         runningResults['GScore'] += fakeOut.item() * batchSize
 
-        # Validate Generator       
-        runningResults['PSNR'], runningResults['SSIM'] = validate_model(netG)
-        trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f PSNR: %.20f SSIM: %.20f' %
+        trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
                                        runningResults['GLoss'] / runningResults['batchSize'],
                                        runningResults['DScore'] / runningResults['batchSize'],
-                                       runningResults['GScore'] / runningResults['batchSize'],
-                                       runningResults['PSNR'] / runningResults['batchSize'], 
-                                       runningResults['SSIM'] / runningResults['batchSize']))
+                                       runningResults['GScore'] / runningResults['batchSize']))
         gc.collect()
+    # Validate Generator
+    runningResults['REDS_PSNR'], runningResults['REDS_SSIM'], runningResults['Vid4_PSNR'], runningResults['Vid4_SSIM'] = validate_model(netG)
+    print('REDS_PSNR: %.20f, REDS_SSIM: %.20f, Vid4_PSNR: %.20f, Vid4_SSIM: %.20f' % 
+         (runningResults['REDS_PSNR'], runningResults['REDS_SSIM'], 
+          runningResults['Vid4_PSNR'], runningResults['Vid4_SSIM']))
         
 
     # learning rate is decayed by a factor of 10 every half of total epochs
@@ -164,8 +166,10 @@ def saveModelParams(epoch, results, netG, netD, opt):
                                     'GLoss': results['GLoss'] / results['batchSize'],
                                     'DScore': results['DScore'] / results['batchSize'],
                                     'GScore': results['GScore'] / results['batchSize'],
-                                    'PSNR': results['PSNR'] / results['batchSize'], 
-                                    'SSIM': results['SSIM'] / results['batchSize']},
+                                    'REDS_PSNR': results['REDS_PSNR'], 
+                                    'REDS_SSIM': results['REDS_SSIM'],
+                                    'Vid4_PSNR': results['Vid4_PSNR'], 
+                                    'Vid4_SSIM': results['Vid4_SSIM']},
                                      index=range(epoch, epoch + 1))
     data_frame.to_csv(csv_path, mode='a', index_label='Epoch', header=header)
 
