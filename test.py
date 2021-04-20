@@ -20,8 +20,7 @@ from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 # Training settings
 parser = argparse.ArgumentParser(description='EDVR GAN Test')
-parser.add_argument('--model_folder_path', help="Model folder path")
-parser.add_argument('--model_name', help="Model name")
+parser.add_argument('--model_path', help="Model folder path")
 parser.add_argument('--output', help="Location to save test results")
 parser.add_argument('--gpu_mode',default=True, action='store_true', required=False, help="Use a CUDA compatible GPU if available")
 parser.add_argument('--testBatchSize', type=int, default=1, help="Testing Batch Size")
@@ -54,7 +53,10 @@ model = EDVR(num_frame=opt.frame)
 device = torch.device("cuda:0" if cuda and torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
-save_dir = os.path.join(opt.output, opt.dataset_name, opt.clip_name, str(opt.frame), opt.model_name)
+model_folder, model_name = os.path.split(opt.model_path)
+_, model_folder_name = os.path.split(model_folder)
+
+save_dir = os.path.join(opt.output, opt.dataset_name, opt.clip_name, str(opt.frame), model_folder_name, model_name)
 
 def eval():
     if os.path.exists(save_dir):
@@ -68,7 +70,7 @@ def eval():
     # utils.printNetworkArch(netG=model, netD=None)
 
     # load model
-    modelPath = os.path.join(opt.model_folder_path, opt.model_name)
+    modelPath = os.path.join(opt.model_path)
     utils.loadPreTrainedModel(gpuMode=opt.gpu_mode, model=model, modelPath=modelPath)
     model.eval()
     
