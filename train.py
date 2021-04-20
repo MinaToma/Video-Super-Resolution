@@ -83,7 +83,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         for p in netD.parameters():
             p.requires_grad = False
 
-        netG.zero_grad()
+        optimizerG.zero_grad()
         fakeHR = netG(input)
         fakeOut = netD(fakeHR)
         GLoss = generatorCriterion(fakeOut, fakeHR, target, True, False, runningResults, batchSize)
@@ -95,7 +95,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         ################################################################################################################
         for p in netD.parameters():
             p.requires_grad = True
-        netD.zero_grad()
+        optimizerD.zero_grad()
         realOut = netD(target).mean()
         fakeOut = netD(fakeHR.detach()).mean()
         l_d_real = generatorCriterion(realOut, None, None, True, True, None, None)
