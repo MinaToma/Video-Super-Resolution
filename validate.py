@@ -36,7 +36,7 @@ class Validator:
             self.validateREDSLoaders.append(make_data_loader(validate_set))
     
     def validate(self, model, runningResults):
-        print('Started Validation')
+        print('===========> Started Validation')
         model.eval()
 
         avg_vid4_psnr = 0.0
@@ -45,7 +45,7 @@ class Validator:
         avg_reds_psnr = 0.0
         avg_reds_ssim = 0.0
 
-        print('Started Vid4 Validation')
+        print('======> Started Vid4 Validation')
         for i, datasetLoader in enumerate(self.validateVid4Loaders):
             psnr, ssim = self.validate_model(model, datasetLoader)
             runningResults[self.vid4_clips[i] + '_PSNR'] = psnr
@@ -59,28 +59,28 @@ class Validator:
 
         runningResults['Vid4_PSNR'] = avg_vid4_psnr / 4
         runningResults['Vid4_SSIM'] = avg_vid4_ssim / 4
-        print('Vid4_PSNR: %.20f' % (runningResults['Vid4_PSNR']))
-        print('Vid4_SSIM: %.20f' % (runningResults['Vid4_SSIM']))
+        print('** Vid4_PSNR: %.20f' % (runningResults['Vid4_PSNR']))
+        print('** Vid4_SSIM: %.20f' % (runningResults['Vid4_SSIM']))
 
         print()
-        print('Started REDS Validation')
-        for i, datasetLoader in enumerate(self.validateREDSLoaders):
-            psnr, ssim = self.validate_model(model, datasetLoader)
-            runningResults[self.reds_clips[i] + '_PSNR'] = psnr
-            runningResults[self.reds_clips[i] + '_SSIM'] = ssim
+        # print('('======> Started REDS Validation')
+        # for i, datasetLoader in enumerate(self.validateREDSLoaders):
+        #     psnr, ssim = self.validate_model(model, datasetLoader)
+        #     runningResults[self.reds_clips[i] + '_PSNR'] = psnr
+        #     runningResults[self.reds_clips[i] + '_SSIM'] = ssim
 
-            print(self.reds_clips[i] + '_PSNR: ' + str(psnr))
-            print(self.reds_clips[i] + '_SSIM: ' + str(ssim))
+        #     print(self.reds_clips[i] + '_PSNR: ' + str(psnr))
+        #     print(self.reds_clips[i] + '_SSIM: ' + str(ssim))
 
-            avg_reds_psnr += psnr
-            avg_reds_ssim += ssim
+        #     avg_reds_psnr += psnr
+        #     avg_reds_ssim += ssim
         
-        runningResults['REDS_PSNR'] = avg_reds_psnr / 4
-        runningResults['REDS_SSIM'] = avg_reds_ssim / 4
+        # runningResults['REDS_PSNR'] = avg_reds_psnr / 4
+        # runningResults['REDS_SSIM'] = avg_reds_ssim / 4
 
-        print('REDS_PSNR: %.20f' % (runningResults['REDS_PSNR']))
-        print('REDS_SSIM: %.20f' % (runningResults['REDS_SSIM']))
-        print()
+        # print('REDS_PSNR: %.20f' % (runningResults['REDS_PSNR']))
+        # print('REDS_SSIM: %.20f' % (runningResults['REDS_SSIM']))
+        # print()
 
     def validate_model(self, model, dataset_loader):
         avg_psnr_predicted = 0.0

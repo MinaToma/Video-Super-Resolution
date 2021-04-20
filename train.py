@@ -47,7 +47,7 @@ opt = parser.parse_args()
 save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame), opt.folder_save_name)
 print('save dir: ', save_dir)
 
-def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt, validator):
+def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
     runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0,
                       'REDS_PSNR': 0, 'REDS_SSIM': 0, 'Vid4_PSNR': 0, 'Vid4_SSIM': 0}
@@ -103,9 +103,6 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                                        runningResults['DScore'] / runningResults['batchSize'],
                                        runningResults['GScore'] / runningResults['batchSize']))
 
-    # Validate Generator and fill accuracy
-    validator.validate(netG, runningResults)
-
     # learning rate is decayed by a factor of 10 every half of total epochs
     if epoch % 10 == 0:
         for param_group in optimizerG.param_groups:
@@ -117,7 +114,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
 
     return runningResults
 
-def saveModelParams(epoch, results, netG, netD, opt):
+def saveModelParams(epoch, results, netG, netD, opt, validator):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -130,6 +127,9 @@ def saveModelParams(epoch, results, netG, netD, opt):
         torch.save(netD.state_dict(), dis_save_path)
         print("Checkpoint saved to {}".format(gen_save_path))
         print("Checkpoint saved to {}".format(dis_save_path))
+
+    # Validate Generator and fill accuracy
+    validator.validate(netG, results)
 
     csv_path = save_dir + '/train_results.csv'
     header = epoch == 1
@@ -179,7 +179,7 @@ def main():
     generatorCriterion.to(device)
 
     # divide learning by half every 10 epochs
-    lr = opt.lr / (2 ** (opt.start_epoch // 10))
+    lr = opt.lr / (2 ** ((opt.start_epoch - 1) // 10))
 
     # Use Adam optimizer
     optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-8)
@@ -194,8 +194,8 @@ def main():
         utils.loadPreTrainedModel(gpuMode=opt.gpu_mode, model=netG, modelPath=opt.pretrained_gen_path)
 
     for epoch in range(start_epoch, start_epoch + opt.nEpochs):
-        runningResults = trainModel(epoch, start_epoch + opt.nEpochs - 1, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt, validator)
-        saveModelParams(epoch, runningResults, netG, netD, opt)
+        runningResults = trainModel(epoch, start_epoch + opt.nEpochs - 1, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt)
+        saveModelParams(epoch, runningResults, netG, netD, opt, validator)
 
 if __name__ == "__main__":
     main()
