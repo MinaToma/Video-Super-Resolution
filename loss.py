@@ -5,47 +5,31 @@ from torchvision.transforms import *
 import torch.nn.functional as F
 from torchvision.models import vgg16
 
-def get_loss_function(opt):
-    return GeneratorLoss(opt)
+def get_loss_function():
+    return GeneratorLoss()
 
 class GeneratorLoss(nn.Module):
-    def __init__(self, opt):
+    def __init__(self):
         super(GeneratorLoss, self).__init__()
         vgg = vgg16(pretrained=True)
         loss_network = nn.Sequential(*list(vgg.features)[:31]).eval()
         for param in loss_network.parameters():
             param.requires_grad = False
-        
         self.loss_network = loss_network
         self.mse_loss = nn.MSELoss()
         self.tv_loss = TVLoss()
-        self.charbonnier_loss = CharbonnierLoss()
-        
-        self.opt = opt
 
-    def forward(self, out_labels, out_images, target_images):
-        loss = 0.0
-        
+    def forward(self, out_labels, hr_est, hr_img):
         # Adversarial Loss
-        if self.opt.adversarial_loss != 0.0:
-          loss += self.opt.adversarial_loss * torch.mean(1 - out_labels)
-        
+        adversarial_loss = -torch.mean(out_labels)
         # Perception Loss
-        if self.opt.perception_loss != 0.0:
-            loss += self.opt.perception_loss * self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))
-        
+        perception_loss = self.mse_loss(self.loss_network(hr_est), self.loss_network(hr_img))
         # Image Loss
-        if self.opt.mse_loss != 0.0:
-            loss += self.opt.mse_loss * self.mse_loss(out_images, target_images)
-        
+        image_loss = self.mse_loss(hr_est, hr_img)
         # TV Loss
-        if self.opt.tv_loss != 0.0:
-            loss += self.opt.tv_loss * self.tv_loss(out_images)
+        tv_loss = self.tv_loss(hr_est)
 
-        if self.opt.charbonnier_loss != 0.0:
-            loss += self.opt.charbonnier_loss * self.charbonnier_loss(out_images, target_images)
-
-        return loss
+        return image_loss + 0.001 * adversarial_loss + 0.006 * perception_loss + 2e-8 * tv_loss
 
 
 class TVLoss(nn.Module):

@@ -102,7 +102,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                                        runningResults['GScore'] / runningResults['batchSize']))
 
     # Validate Generator and fill accuracy
-    validate_model(netG, validator)
+    validator.validate(netG, runningResults)
 
     # learning rate is decayed by a factor of 10 every half of total epochs
     if epoch % 10 == 0:
@@ -159,12 +159,12 @@ def main():
     print('# of Discriminator parameters: ', sum(param.numel() for param in netD.parameters()))
 
     # get loss function
-    generatorCriterion = get_loss_function(opt)
+    generatorCriterion = get_loss_function()
 
     # Specify device
     device = torch.device("cuda:0" if torch.cuda.is_available() and opt.gpu_mode else "cpu")
 
-    Validator validator = Validator(opt, device)
+    validator = Validator(opt, device)
 
     if opt.gpu_mode and torch.cuda.is_available():
         utils.printCUDAStats()

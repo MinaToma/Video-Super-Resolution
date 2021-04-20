@@ -3,7 +3,7 @@ import numpy as np
 from metrics import *
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from dataset import REDSValidationDataset, Vid4ValidationDataset
+from dataset import get_test_set
 
 def make_data_loader(dataset_loader):
     return DataLoader(dataset=dataset_loader, num_workers=1, batch_size=1, shuffle=False)
@@ -24,18 +24,19 @@ class Validator:
         self.reds_clips = ['000', '011', '015', '020']
         
         self.validateVid4Loaders = []
-        for clip in vid4_clips:
-            OPT_MOCK opt_mock = OPT_MOCK('/content/drive/MyDrive/datasets/test/Vid4/GT', '/content/drive/MyDrive/datasets/test/Vid4/BIx4', clip, opt.frame, 'vid4')
-            validate_set = get_test_set(opt)
+        for clip in self.vid4_clips:
+            opt_mock = OPT_MOCK('/content/drive/MyDrive/datasets/test/Vid4/GT', '/content/drive/MyDrive/datasets/test/Vid4/BIx4', clip, opt.frame, 'vid4')
+            validate_set = get_test_set(opt_mock)
             self.validateVid4Loaders.append(make_data_loader(validate_set))
         
         self.validateREDSLoaders = []
-        for clip in reds_clips:
-            OPT_MOCK opt_mock = OPT_MOCK('/content/drive/MyDrive/datasets/test/REDS4/GT', '/content/drive/MyDrive/datasets/test/REDS4/sharp_bicubic', clip, opt.frame, 'REDS')
-            validate_set = get_test_set(opt)
+        for clip in self.reds_clips:
+            opt_mock = OPT_MOCK('/content/drive/MyDrive/datasets/test/REDS4/GT', '/content/drive/MyDrive/datasets/test/REDS4/sharp_bicubic', clip, opt.frame, 'REDS')
+            validate_set = get_test_set(opt_mock)
             self.validateREDSLoaders.append(make_data_loader(validate_set))
     
-    def validate(sefl, model, runningResults):
+    def validate(self, model, runningResults):
+        print('Started Validation')
         model.eval()
 
         avg_vid4_psnr = 0.0
@@ -44,13 +45,14 @@ class Validator:
         avg_reds_psnr = 0.0
         avg_reds_ssim = 0.0
 
+        print('Started Vid4 Validation')
         for i, datasetLoader in enumerate(self.validateVid4Loaders):
-            psnr, ssim = validate_model(model, datasetLoader)
-            runningResults[self.vid4_clips + '_PSNR'] = psnr
-            runningResults[self.vid4_clips + '_SSIM'] = ssim
+            psnr, ssim = self.validate_model(model, datasetLoader)
+            runningResults[self.vid4_clips[i] + '_PSNR'] = psnr
+            runningResults[self.vid4_clips[i] + '_SSIM'] = ssim
 
-            print(self.vid4_clips + '_PSNR: ' + str(psnr))
-            print(self.vid4_clips + '_SSIM: ' + str(ssim))
+            print(self.vid4_clips[i] + '_PSNR: ' + str(psnr))
+            print(self.vid4_clips[i] + '_SSIM: ' + str(ssim))
 
             avg_vid4_psnr += psnr
             avg_vid4_ssim += ssim
@@ -60,13 +62,15 @@ class Validator:
         print('Vid4_PSNR: %.20f' % (runningResults['Vid4_PSNR']))
         print('Vid4_SSIM: %.20f' % (runningResults['Vid4_SSIM']))
 
+        print()
+        print('Started REDS Validation')
         for i, datasetLoader in enumerate(self.validateREDSLoaders):
-            psnr, ssim = validate_model(model, datasetLoader)
-            runningResults[self.reds_clips + '_PSNR'] = psnr
-            runningResults[self.reds_clips + '_SSIM'] = ssim
+            psnr, ssim = self.validate_model(model, datasetLoader)
+            runningResults[self.reds_clips[i] + '_PSNR'] = psnr
+            runningResults[self.reds_clips[i] + '_SSIM'] = ssim
 
-            print(self.reds_clips + '_PSNR: ' + str(psnr))
-            print(self.reds_clips + '_SSIM: ' + str(ssim))
+            print(self.reds_clips[i] + '_PSNR: ' + str(psnr))
+            print(self.reds_clips[i] + '_SSIM: ' + str(ssim))
 
             avg_reds_psnr += psnr
             avg_reds_ssim += ssim
@@ -76,6 +80,7 @@ class Validator:
 
         print('REDS_PSNR: %.20f' % (runningResults['REDS_PSNR']))
         print('REDS_SSIM: %.20f' % (runningResults['REDS_SSIM']))
+        print()
 
     def validate_model(self, model, dataset_loader):
         avg_psnr_predicted = 0.0
