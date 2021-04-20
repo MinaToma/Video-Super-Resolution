@@ -47,6 +47,14 @@ opt = parser.parse_args()
 save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame), opt.folder_save_name)
 print('save dir: ', save_dir)
 
+ganLoss = nn.BCEWithLogitsLoss()
+def getGanLoss(input, target_is_real, is_disc):
+    target_label = input.new_ones(input.size()) * target_is_real
+    if is_disc:
+      return ganLoss(input, target_label)
+    else:      
+      return 0.001 * ganLoss(input, target_label)
+
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
     runningResults = {'batchSize': 0,
@@ -83,10 +91,20 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         for p in netD.parameters():
             p.requires_grad = False
 
-        netG.zero_grad()
+        optimizerG.zero_grad()
         fakeHR = netG(input)
-        fakeOut = netD(fakeHR)
-        GLoss = generatorCriterion(fakeOut, fakeHR, target, True, False, runningResults, batchSize)
+        losses = generatorCriterion(fakeHR, target, runningResults, batchSize)
+        real_d_pred = netD(target).detach()
+        fake_g_pred = netD(fakeHR)
+        l_g_real = getGanLoss(real_d_pred - torch.mean(fake_g_pred),
+                              False,
+                              False)
+        l_g_fake = getGanLoss(fake_g_pred - torch.mean(real_d_pred),
+                              True,
+                              False)
+        l_g_gan = (l_g_real + l_g_fake) / 2
+        runningResults["adversarial_loss"] += l_g_gan.item() * batchSize
+        GLoss = l_g_gan + losses
         GLoss.backward()
         optimizerG.step()
 
@@ -95,19 +113,27 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         ################################################################################################################
         for p in netD.parameters():
             p.requires_grad = True
-        netD.zero_grad()
-        realOut = netD(target).mean()
-        fakeOut = netD(fakeHR.detach()).mean()
-        l_d_real = generatorCriterion(realOut, None, None, True, True, None, None)
-        l_d_fake = generatorCriterion(fakeOut, None, None, False, True, None, None)
-        DLoss = l_d_real + l_d_fake
-        DLoss.backward()
+        optimizerD.zero_grad()
+        # real
+        fake_d_pred = netD(fakeHR).detach()
+        real_d_pred = netD(target)
+        l_d_real = getGanLoss(real_d_pred - torch.mean(fake_d_pred),
+                              True,
+                              True
+                              )
+        # fake
+        fake_d_pred = netD(fakeHR.detach())
+        l_d_fake = getGanLoss(fake_d_pred - torch.mean(real_d_pred.detach()),
+                              False,
+                              True
+                              ) 
+        DLoss = (l_d_fake + l_d_real) / 2
         optimizerD.step()
 
         runningResults['GLoss'] += GLoss.item() * batchSize
         runningResults['DLoss'] += DLoss.item() * batchSize
-        runningResults['DScore'] += torch.sigmoid(realOut).mean().item() * batchSize
-        runningResults['GScore'] += torch.sigmoid(fakeOut).mean().item() * batchSize
+        runningResults['DScore'] += torch.sigmoid(real_d_pred).mean().item() * batchSize
+        runningResults['GScore'] += torch.sigmoid(fake_d_pred).mean().item() * batchSize
 
         trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
