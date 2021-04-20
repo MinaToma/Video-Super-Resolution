@@ -15,7 +15,6 @@ class GeneratorLoss(nn.Module):
         self.loss_network = loss_network
         self.mse_loss = nn.MSELoss()
         self.tv_loss = TVLoss()
-        self.adversarial_loss = nn.BCEWithLogitsLoss()
 
     def forward(self, hr_est, hr_img, runningResults, batchSize):
         # Perception Loss
