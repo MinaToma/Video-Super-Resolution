@@ -49,8 +49,20 @@ print('save dir: ', save_dir)
 
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
-    runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0,
-                      'REDS_PSNR': 0, 'REDS_SSIM': 0, 'Vid4_PSNR': 0, 'Vid4_SSIM': 0}
+    runningResults = {'batchSize': 0,
+                      'DLoss': 0, 
+                      'GLoss': 0, 
+                      'DScore': 0, 
+                      'GScore': 0,
+                      'REDS_PSNR': 0, 
+                      'REDS_SSIM': 0, 
+                      'Vid4_PSNR': 0, 
+                      'Vid4_SSIM': 0,
+                      'adversarial_loss': 0,
+                      'perception_loss': 0,
+                      'mse_loss': 0,
+                      'tv_loss': 0,
+                      }
 
     netG.train()
     netD.train()
@@ -74,7 +86,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         netG.zero_grad()
         fakeHR = netG(input)
         fakeOut = netD(fakeHR)
-        GLoss = generatorCriterion(fakeOut, fakeHR, target, True, False)
+        GLoss = generatorCriterion(fakeOut, fakeHR, target, True, False, runningResults, batchSize)
         GLoss.backward()
         optimizerG.step()
 
@@ -86,16 +98,16 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         netD.zero_grad()
         realOut = netD(target).mean()
         fakeOut = netD(fakeHR.detach()).mean()
-        l_d_real = generatorCriterion(realOut, None, None, True, True)
-        l_d_fake = generatorCriterion(fakeOut, None, None, False, True)
+        l_d_real = generatorCriterion(realOut, None, None, True, True, None, None)
+        l_d_fake = generatorCriterion(fakeOut, None, None, False, True, None, None)
         DLoss = l_d_real + l_d_fake
         DLoss.backward()
         optimizerD.step()
 
         runningResults['GLoss'] += GLoss.item() * batchSize
         runningResults['DLoss'] += DLoss.item() * batchSize
-        runningResults['DScore'] += torch.sigmoid(realOut).mean() * batchSize
-        runningResults['GScore'] += torch.sigmoid(fakeOut).mean() * batchSize
+        runningResults['DScore'] += torch.sigmoid(realOut).mean().item() * batchSize
+        runningResults['GScore'] += torch.sigmoid(fakeOut).mean().item() * batchSize
 
         trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
@@ -140,11 +152,17 @@ def saveModelParams(epoch, results, netG, netD, opt, validator):
                                     'GLoss': results['GLoss'] / results['batchSize'],
                                     'DScore': results['DScore'] / results['batchSize'],
                                     'GScore': results['GScore'] / results['batchSize'],
+                                    'adversarial_loss': results['adversarial_loss'] / results['batchSize'],
+                                    'perception_loss': results['perception_loss'] / results['batchSize'],
+                                    'mse_loss': results['mse_loss'] / results['batchSize'],
+                                    'tv_loss': results['tv_loss'] / results['batchSize'],
                                     'REDS_PSNR': results['REDS_PSNR'], 
                                     'REDS_SSIM': results['REDS_SSIM'],
                                     'Vid4_PSNR': results['Vid4_PSNR'], 
-                                    'Vid4_SSIM': results['Vid4_SSIM']},
+                                    'Vid4_SSIM': results['Vid4_SSIM'],
+                                    },
                                      index=range(epoch, epoch + 1))
+
     data_frame.to_csv(csv_path, mode='a', index_label='Epoch', header=header)
 
 def main():
