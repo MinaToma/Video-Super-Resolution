@@ -236,4 +236,3 @@ class Vid4TestDataset(data.Dataset):
         sample = self.transform(sample)
 
         return sample['lr'], sample['hr']
-
