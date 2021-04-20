@@ -5,9 +5,6 @@ from torchvision.transforms import *
 import torch.nn.functional as F
 from torchvision.models import vgg16
 
-def get_loss_function():
-    return GeneratorLoss()
-
 class GeneratorLoss(nn.Module):
     def __init__(self):
         super(GeneratorLoss, self).__init__()
@@ -18,10 +15,16 @@ class GeneratorLoss(nn.Module):
         self.loss_network = loss_network
         self.mse_loss = nn.MSELoss()
         self.tv_loss = TVLoss()
+        self.adversarial_loss = nn.BCEWithLogitsLoss()
 
-    def forward(self, out_labels, hr_est, hr_img):
+    def forward(self, out_labels, hr_est, hr_img, is_real, is_disc):
+        label = out_labels.new_ones(out_labels.size()) * is_real
         # Adversarial Loss
-        adversarial_loss = -torch.mean(out_labels)
+        adversarial_loss = self.adversarial_loss(out_labels, label) 
+
+        if is_disc:
+          return adversarial_loss
+
         # Perception Loss
         perception_loss = self.mse_loss(self.loss_network(hr_est), self.loss_network(hr_img))
         # Image Loss

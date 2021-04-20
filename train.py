@@ -74,7 +74,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         netG.zero_grad()
         fakeHR = netG(input)
         fakeOut = netD(fakeHR)
-        GLoss = generatorCriterion(fakeOut, fakeHR, target)
+        GLoss = generatorCriterion(fakeOut, fakeHR, target, True, False)
         GLoss.backward()
         optimizerG.step()
 
@@ -86,14 +86,16 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         netD.zero_grad()
         realOut = netD(target).mean()
         fakeOut = netD(fakeHR.detach()).mean()
-        DLoss = 1 - realOut + fakeOut
+        l_d_real = generatorCriterion(realOut, None, None, True, True)
+        l_d_fake = generatorCriterion(fakeOut, None, None, False, True)
+        DLoss = l_d_real + l_d_fake
         DLoss.backward()
         optimizerD.step()
 
         runningResults['GLoss'] += GLoss.item() * batchSize
         runningResults['DLoss'] += DLoss.item() * batchSize
-        runningResults['DScore'] += realOut.mean().item() * batchSize
-        runningResults['GScore'] += fakeOut.mean().item() * batchSize
+        runningResults['DScore'] += torch.sigmoid(realOut).mean() * batchSize
+        runningResults['GScore'] += torch.sigmoid(fakeOut).mean() * batchSize
 
         trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
