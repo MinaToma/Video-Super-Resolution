@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 import utils
 from model import EDVR
 from dataset import get_training_set
-from loss import get_loss_function
+from loss import GeneratorLoss
 from validate import Validator
 from torchvision.transforms import Compose, ToTensor
 
@@ -66,36 +66,34 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         target = target.to(device)
 
         ################################################################################################################
-        # (1) Update D network: maximize D(x)-1-D(G(z))
+        # (1) Update G network: minimize 1-D(G(z)) + Perception Loss + Image Loss + TV Loss
         ################################################################################################################
+        for p in netD.parameters():
+            p.requires_grad = False
 
-        DLoss = 0
-        netD.zero_grad()
-
-        fakeHR = netG(input)
-        realOut = netD(target).mean()
-        fakeOut = netD(fakeHR).mean()
-
-        DLoss += 1 - realOut + fakeOut
-        DLoss.backward(retain_graph=True)
-        optimizerD.step()
-
-        ################################################################################################################
-        # (2) Update G network: minimize 1-D(G(z)) + Perception Loss + Image Loss + TV Loss
-        ################################################################################################################
         netG.zero_grad()
-
-        fakeOut = netD(fakeHR).mean()
+        fakeHR = netG(input)
+        fakeOut = netD(fakeHR)
         GLoss = generatorCriterion(fakeOut, fakeHR, target)
         GLoss.backward()
         optimizerG.step()
 
-        fakeHR = netG(input)
-        fakeOut = netD(fakeHR).mean()
+        ################################################################################################################
+        # (2) Update D network: maximize D(x)-1-D(G(z))
+        ################################################################################################################
+        for p in netD.parameters():
+            p.requires_grad = True
+        netD.zero_grad()
+        realOut = netD(target).mean()
+        fakeOut = netD(fakeHR.detach()).mean()
+        DLoss = 1 - realOut + fakeOut
+        DLoss.backward()
+        optimizerD.step()
+
         runningResults['GLoss'] += GLoss.item() * batchSize
         runningResults['DLoss'] += DLoss.item() * batchSize
-        runningResults['DScore'] += realOut.item() * batchSize
-        runningResults['GScore'] += fakeOut.item() * batchSize
+        runningResults['DScore'] += realOut.mean().item() * batchSize
+        runningResults['GScore'] += fakeOut.mean().item() * batchSize
 
         trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
@@ -164,7 +162,7 @@ def main():
     print('# of Discriminator parameters: ', sum(param.numel() for param in netD.parameters()))
 
     # get loss function
-    generatorCriterion = get_loss_function()
+    generatorCriterion = GeneratorLoss()
 
     # Specify device
     device = torch.device("cuda:0" if torch.cuda.is_available() and opt.gpu_mode else "cpu")
