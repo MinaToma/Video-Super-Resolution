@@ -30,6 +30,8 @@ parser.add_argument('--gpus', default=8, type=int, help='number of gpu')
 parser.add_argument('--frame', type=int, default=7)
 parser.add_argument('--data_augmentation', type=bool, default=True)
 parser.add_argument('--pretrained', action='store_true', help='Use pretrained model')
+parser.add_argument('--pretrained_gen_path', default= 'x.pth', help='Use pretrained model')
+parser.add_argument('--pretrained_dis_path', default= 'x.pth', help='Use pretrained model')
 parser.add_argument('--gen_model_name', default='netG_EDVR_4x', help='Name of generator model')
 parser.add_argument('--dis_model_name', default='netD_EDVR_4x', help='Name of discriminator model')
 parser.add_argument('--patch_size', type=int, default=256, help='patch of gt, 0 to use original frame size')
@@ -185,11 +187,8 @@ def main():
     
     start_epoch  = opt.start_epoch
     if opt.pretrained:
-        modelDisPath = save_dir + '/' + opt.dis_model_name + '_' + str(start_epoch) + '.pth'
-        utils.loadPreTrainedModel(gpuMode=opt.gpu_mode, model=netD, modelPath=modelDisPath)
-        modelPath = save_dir + '/' + opt.gen_model_name + '_' + str(start_epoch) + '.pth'
-        utils.loadPreTrainedModel(gpuMode=opt.gpu_mode, model=netG, modelPath=modelPath)
-        start_epoch += 1
+        utils.loadPreTrainedModel(gpuMode=opt.gpu_mode, model=netD, modelPath=opt.pretrained_dis_path)
+        utils.loadPreTrainedModel(gpuMode=opt.gpu_mode, model=netG, modelPath=opt.pretrained_gen_path)
 
     for epoch in range(start_epoch, start_epoch + opt.nEpochs):
         runningResults = trainModel(epoch, start_epoch + opt.nEpochs - 1, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt, validator)
