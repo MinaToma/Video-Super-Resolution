@@ -110,7 +110,10 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
     if epoch % 10 == 0:
         for param_group in optimizerG.param_groups:
             param_group['lr'] /= 2.0
-        print('Learning rate decayed by half every 10 epochs: lr= ', (optimizerG.param_groups[0]['lr']))
+        for param_group in optimizerD.param_groups:
+            param_group['lr'] /= 2.0
+        print('Learning rate in gen decayed by half every 10 epochs: lr= ', (optimizerG.param_groups[0]['lr']))
+        print('Learning rate in dis decayed by half every 10 epochs: lr= ', (optimizerD.param_groups[0]['lr']))
 
     return runningResults
 
@@ -179,8 +182,8 @@ def main():
     lr = opt.lr / (2 ** (opt.start_epoch // 10))
 
     # Use Adam optimizer
-    optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(0.9, 0.999), eps=1e-8)
-    optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(0.9, 0.999), eps=1e-8)
+    optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-8)
+    optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-8)
   
     # print EDVR_GAN architecture
     # utils.printNetworkArch(netG, netD)
