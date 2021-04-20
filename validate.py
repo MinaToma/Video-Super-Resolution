@@ -5,75 +5,105 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from dataset import REDSValidationDataset, Vid4ValidationDataset
 
-device = torch.device("cuda:0")
-print('==> Loading Validation datasets')
-val_REDS_set = REDSValidationDataset()
-val_REDS_set_loader = DataLoader(dataset=val_REDS_set, num_workers=1, batch_size=1, shuffle=False)
+def make_data_loader(dataset_loader):
+    return DataLoader(dataset=dataset_loader, num_workers=1, batch_size=1, shuffle=False)
 
-val_Vid4_set = Vid4ValidationDataset()
-val_Vid4_set_loader = DataLoader(dataset=val_Vid4_set, num_workers=1, batch_size=1, shuffle=False)
+class OPT_MOCK:
+    def __init__(self, gt_dir, lr_dir, clip_name, frame, dataset_name):
+        self.gt_dir = gt_dir
+        self.lr_dir = lr_dir
+        self.clip_name = clip_name
+        self.frame = frame
+        self.dataset_name = dataset_name
 
-def validate_model(model):
-    model.eval()
-    REDS_psnr, REDS_ssim = validate_REDS(model)
-    Vid4_psnr, Vid4_ssim = validate_Vid4(model)
-    return REDS_psnr, REDS_ssim, Vid4_psnr, Vid4_ssim
+class Validator:
+    def __init__(self, opt, device):
+        self.device = device
+
+        self.vid4_clips = ['calendar', 'city', 'foliage' , 'walk']
+        self.reds_clips = ['000', '011', '015', '020']
+        
+        self.validateVid4Loaders = []
+        for clip in vid4_clips:
+            OPT_MOCK opt_mock = OPT_MOCK('/content/drive/MyDrive/datasets/test/Vid4/GT', '/content/drive/MyDrive/datasets/test/Vid4/BIx4', clip, opt.frame, 'vid4')
+            validate_set = get_test_set(opt)
+            self.validateVid4Loaders.append(make_data_loader(validate_set))
+        
+        self.validateREDSLoaders = []
+        for clip in reds_clips:
+            OPT_MOCK opt_mock = OPT_MOCK('/content/drive/MyDrive/datasets/test/REDS4/GT', '/content/drive/MyDrive/datasets/test/REDS4/sharp_bicubic', clip, opt.frame, 'REDS')
+            validate_set = get_test_set(opt)
+            self.validateREDSLoaders.append(make_data_loader(validate_set))
     
+    def validate(sefl, model, runningResults):
+        model.eval()
 
-def validate_Vid4(model):
-    avg_psnr_predicted = 0.0
-    avg_ssim_predicted = 0.0
+        avg_vid4_psnr = 0.0
+        avg_vid4_ssim = 0.0
 
-    count = 0
-    for batch in val_Vid4_set_loader:
-        input, target = batch[0], batch[1]
-        with torch.no_grad():
-            input = Variable(input)
-            target = Variable(target)
-            input = input.to(device)
-            target = target.to(device)
-            prediction = model(input)
-        prediction = prediction.cpu()
-        prediction = prediction.data[0].numpy().astype(np.float32)
-        prediction = prediction * 255.
+        avg_reds_psnr = 0.0
+        avg_reds_ssim = 0.0
 
-        target = target.cpu().squeeze().numpy().astype(np.float32)
-        target = target * 255.
-        psnr_predicted = PSNR(prediction, target)
-        ssim_predicted = SSIM(prediction, target)
+        for i, datasetLoader in enumerate(self.validateVid4Loaders):
+            psnr, ssim = validate_model(model, datasetLoader)
+            runningResults[self.vid4_clips + '_PSNR'] = psnr
+            runningResults[self.vid4_clips + '_SSIM'] = ssim
 
-        avg_psnr_predicted += psnr_predicted
-        avg_ssim_predicted += ssim_predicted          
-        count += 1
-    avg_psnr_predicted /= count
-    avg_ssim_predicted /= count
-    return avg_psnr_predicted, avg_ssim_predicted
+            print(self.vid4_clips + '_PSNR: ' + str(psnr))
+            print(self.vid4_clips + '_SSIM: ' + str(ssim))
 
-def validate_REDS(model):
-    avg_psnr_predicted = 0.0
-    avg_ssim_predicted = 0.0
+            avg_vid4_psnr += psnr
+            avg_vid4_ssim += ssim
 
-    count = 0
-    for batch in val_REDS_set_loader:
-        input, target = batch[0], batch[1]
-        with torch.no_grad():
-            input = Variable(input)
-            target = Variable(target)
-            input = input.to(device)
-            target = target.to(device)
-            prediction = model(input)
-        prediction = prediction.cpu()
-        prediction = prediction.data[0].numpy().astype(np.float32)
-        prediction = prediction * 255.
+        runningResults['Vid4_PSNR'] = avg_vid4_psnr / 4
+        runningResults['Vid4_SSIM'] = avg_vid4_ssim / 4
+        print('Vid4_PSNR: %.20f' % (runningResults['Vid4_PSNR']))
+        print('Vid4_SSIM: %.20f' % (runningResults['Vid4_SSIM']))
 
-        target = target.cpu().squeeze().numpy().astype(np.float32)
-        target = target * 255.
-        psnr_predicted = PSNR(prediction, target)
-        ssim_predicted = SSIM(prediction, target)
+        for i, datasetLoader in enumerate(self.validateREDSLoaders):
+            psnr, ssim = validate_model(model, datasetLoader)
+            runningResults[self.reds_clips + '_PSNR'] = psnr
+            runningResults[self.reds_clips + '_SSIM'] = ssim
 
-        avg_psnr_predicted += psnr_predicted
-        avg_ssim_predicted += ssim_predicted          
-        count += 1
-    avg_psnr_predicted /= count
-    avg_ssim_predicted /= count
-    return avg_psnr_predicted, avg_ssim_predicted
+            print(self.reds_clips + '_PSNR: ' + str(psnr))
+            print(self.reds_clips + '_SSIM: ' + str(ssim))
+
+            avg_reds_psnr += psnr
+            avg_reds_ssim += ssim
+        
+        runningResults['REDS_PSNR'] = avg_reds_psnr / 4
+        runningResults['REDS_SSIM'] = avg_reds_ssim / 4
+
+        print('REDS_PSNR: %.20f' % (runningResults['REDS_PSNR']))
+        print('REDS_SSIM: %.20f' % (runningResults['REDS_SSIM']))
+
+    def validate_model(self, model, dataset_loader):
+        avg_psnr_predicted = 0.0
+        avg_ssim_predicted = 0.0
+
+        count = 0
+        for batch in dataset_loader:
+            input, target = batch[0], batch[1]
+            with torch.no_grad():
+                input = Variable(input)
+                target = Variable(target)
+                input = input.to(self.device)
+                target = target.to(self.device)
+                prediction = model(input)
+
+            prediction = prediction.cpu()
+            prediction = prediction.data[0].numpy().astype(np.float32)
+            prediction = prediction * 255.
+
+            target = target.cpu().squeeze().numpy().astype(np.float32)
+            target = target * 255.
+            psnr_predicted = PSNR(prediction, target)
+            ssim_predicted = SSIM(prediction, target)
+
+            avg_psnr_predicted += psnr_predicted
+            avg_ssim_predicted += ssim_predicted          
+            count += 1
+
+        avg_psnr_predicted /= count
+        avg_ssim_predicted /= count
+        return avg_psnr_predicted, avg_ssim_predicted

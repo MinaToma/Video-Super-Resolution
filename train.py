@@ -13,7 +13,7 @@ import utils
 from model import EDVR
 from dataset import get_training_set
 from loss import get_loss_function
-from validate import validate_model
+from validate import Validator
 from torchvision.transforms import Compose, ToTensor
 
 
@@ -38,41 +38,14 @@ parser.add_argument('--output', default='/content/out', help='Location to save c
 parser.add_argument('--dataset_name', default='vemo90k', help='Location to ground truth frames')
 parser.add_argument('--gt_dir', help='Location to ground truth frames')
 parser.add_argument('--lr_dir', help='Location to low resolution frames')
-parser.add_argument('--mse_loss', type=float, default=1.0)
-parser.add_argument('--adversarial_loss', type=float, default=0.001)
-parser.add_argument('--perception_loss', type=float, default=0.006)
-parser.add_argument('--tv_loss', type=float, default=2e-8)
-parser.add_argument('--charbonnier_loss', type=float, default=0.0)
+parser.add_argument('--folder_save_name', help='folder name to save models')
 
 opt = parser.parse_args()
-loss_name = ''
 
-print('=========================LOSS=========================================')
-if opt.perception_loss != 0.0:
-  loss_name += 'perception_loss_' + str(opt.perception_loss) + '_'
-  print("Uses perception_loss with weight: " + str(opt.perception_loss))
-
-if opt.mse_loss != 0.0:
-  loss_name += 'mse_loss_' + str(opt.mse_loss) + '_'
-  print("Uses mse_loss with weight: " + str(opt.mse_loss))
-
-if opt.tv_loss != 0.0:
-  loss_name += 'tv_loss_' + str(opt.tv_loss) + '_'
-  print("Uses tv_loss with weight: " + str(opt.tv_loss))
-
-if opt.charbonnier_loss != 0.0:
-  loss_name += 'charbonnier_loss_' + str(opt.charbonnier_loss) + '_'
-  print("Uses charbonnier_loss with weight: " + str(opt.charbonnier_loss))
-
-if opt.adversarial_loss != 0.0:
-  loss_name += 'adversarial_loss_' + str(opt.adversarial_loss) + '_'
-  print("Uses adversarial_loss with weight: " + str(opt.adversarial_loss))
-
-save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame), loss_name)
+save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame), opt.folder_save_name)
 print('save dir: ', save_dir)
 
-
-def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
+def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt, validator):
     trainBar = tqdm(training_data_loader)
     runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0,
                       'REDS_PSNR': 0, 'REDS_SSIM': 0, 'Vid4_PSNR': 0, 'Vid4_SSIM': 0}
@@ -127,13 +100,9 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                                        runningResults['GLoss'] / runningResults['batchSize'],
                                        runningResults['DScore'] / runningResults['batchSize'],
                                        runningResults['GScore'] / runningResults['batchSize']))
-        gc.collect()
-    # Validate Generator
-    runningResults['REDS_PSNR'], runningResults['REDS_SSIM'], runningResults['Vid4_PSNR'], runningResults['Vid4_SSIM'] = validate_model(netG)
-    print('REDS_PSNR: %.20f, REDS_SSIM: %.20f, Vid4_PSNR: %.20f, Vid4_SSIM: %.20f' % 
-         (runningResults['REDS_PSNR'], runningResults['REDS_SSIM'], 
-          runningResults['Vid4_PSNR'], runningResults['Vid4_SSIM']))
-        
+
+    # Validate Generator and fill accuracy
+    validate_model(netG, validator)
 
     # learning rate is decayed by a factor of 10 every half of total epochs
     if epoch % 10 == 0:
@@ -195,6 +164,8 @@ def main():
     # Specify device
     device = torch.device("cuda:0" if torch.cuda.is_available() and opt.gpu_mode else "cpu")
 
+    Validator validator = Validator(opt, device)
+
     if opt.gpu_mode and torch.cuda.is_available():
         utils.printCUDAStats()
 
@@ -221,7 +192,7 @@ def main():
         start_epoch += 1
 
     for epoch in range(start_epoch, start_epoch + opt.nEpochs):
-        runningResults = trainModel(epoch, start_epoch + opt.nEpochs - 1, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt)
+        runningResults = trainModel(epoch, start_epoch + opt.nEpochs - 1, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt, validator)
         saveModelParams(epoch, runningResults, netG, netD, opt)
 
 if __name__ == "__main__":
