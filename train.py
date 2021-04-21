@@ -133,15 +133,15 @@ def saveModelParams(epoch, results, netG, netD, opt, validator):
     gen_save_path = save_dir + '/' + opt.gen_model_name + '_' + str(epoch) + '.pth'
     dis_save_path = save_dir + '/' + opt.dis_model_name + '_' + str(epoch) + '.pth'
     
+    # Validate Generator and fill accuracy
+    validator.validate(netG, results)
+
     # Save model parameters
     if epoch % (opt.snapshots) == 0:
         torch.save(netG.state_dict(), gen_save_path)
         torch.save(netD.state_dict(), dis_save_path)
         print("Checkpoint saved to {}".format(gen_save_path))
         print("Checkpoint saved to {}".format(dis_save_path))
-
-    # Validate Generator and fill accuracy
-    validator.validate(netG, results)
 
     csv_path = save_dir + '/train_results.csv'
     header = epoch == 1
