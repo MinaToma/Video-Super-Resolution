@@ -53,7 +53,7 @@ def getGanLoss(input, target_is_real, is_disc):
     if is_disc:
       return ganLoss(input, target_label)
     else:      
-      return 0.001 * ganLoss(input, target_label)
+      return ganLoss(input, target_label)
 
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
@@ -70,6 +70,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                       'perception_loss': 0,
                       'mse_loss': 0,
                       'tv_loss': 0,
+                      'charbonnier_loss': 0,
                       }
 
     netG.train()
@@ -104,7 +105,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                               False)
         l_g_gan = (l_g_real + l_g_fake) / 2
         runningResults["adversarial_loss"] += l_g_gan.item() * batchSize
-        GLoss = l_g_gan + losses
+        GLoss = losses
         GLoss.backward()
         optimizerG.step()
 
@@ -182,6 +183,7 @@ def saveModelParams(epoch, results, netG, netD, opt, validator):
                                     'perception_loss': results['perception_loss'] / results['batchSize'],
                                     'mse_loss': results['mse_loss'] / results['batchSize'],
                                     'tv_loss': results['tv_loss'] / results['batchSize'],
+                                    'charbonnier_loss': results['charbonnier_loss'] / results['batchSize'],
                                     'REDS_PSNR': results['REDS_PSNR'], 
                                     'REDS_SSIM': results['REDS_SSIM'],
                                     'Vid4_PSNR': results['Vid4_PSNR'], 
