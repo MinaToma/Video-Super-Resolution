@@ -176,7 +176,7 @@ class Vemo90KTrainDataset(data.Dataset):
         self.len = len(self.folder_list)
 
     def __len__(self):
-        return 2
+        return self.len
 
     def __getitem__(self, idx):
         folder_name = self.folder_list[idx]
@@ -212,7 +212,7 @@ class Vid4TestDataset(data.Dataset):
         self.len = len(self.img_list)
 
     def __len__(self):
-        return 2
+        return self.len
 
     def __getitem__(self, idx):
         frames_hr_name = '{}/{}'.format(self.dir_HR, self.img_list[idx])
