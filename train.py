@@ -53,7 +53,7 @@ def getGanLoss(input, target_is_real, is_disc):
     if is_disc:
       return ganLoss(input, target_label)
     else:      
-      return ganLoss(input, target_label)
+      return 0.001 * ganLoss(input, target_label)
 
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
@@ -105,7 +105,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                               False)
         l_g_gan = (l_g_real + l_g_fake) / 2
         runningResults["adversarial_loss"] += l_g_gan.item() * batchSize
-        GLoss = losses
+        GLoss = losses + l_g_gan
         GLoss.backward()
         optimizerG.step()
 
