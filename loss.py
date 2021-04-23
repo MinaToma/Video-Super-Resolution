@@ -16,6 +16,7 @@ class GeneratorLoss(nn.Module):
         self.mse_loss = nn.MSELoss()
         self.tv_loss = TVLoss()
         self.adversarial_loss = nn.BCEWithLogitsLoss()
+        self.charbonnier_loss = CharbonnierLoss()
 
     def forward(self, out_labels, hr_est, hr_img, is_real, is_disc, runningResults, batchSize):
         label = out_labels.new_ones(out_labels.size()) * is_real
@@ -31,13 +32,16 @@ class GeneratorLoss(nn.Module):
         image_loss = self.mse_loss(hr_est, hr_img)
         # TV Loss
         tv_loss = self.tv_loss(hr_est)
+        # charbonnier_loss
+        charbonnier_loss = self.charbonnier_loss(hr_est, hr_img)
 
         runningResults["adversarial_loss"] += adversarial_loss.item() * 0.001 * batchSize
-        runningResults["perception_loss"] += perception_loss.item() * 0.006 *batchSize
+        runningResults["perception_loss"] += perception_loss.item() * batchSize
         runningResults["mse_loss"] += image_loss.item() * batchSize
-        runningResults["tv_loss"] += tv_loss.item() * 2e-8 * batchSize
+        runningResults["tv_loss"] += tv_loss.item() * batchSize
+        runningResults["charbonnier_loss"] += charbonnier_loss.item() * batchSize
 
-        return image_loss + 0.001 * adversarial_loss + 0.006 * perception_loss + 2e-8 * tv_loss
+        return charbonnier_loss + 0.001 * adversarial_loss
 
 
 class TVLoss(nn.Module):

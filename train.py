@@ -62,6 +62,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                       'perception_loss': 0,
                       'mse_loss': 0,
                       'tv_loss': 0,
+                      'charbonnier_loss': 0,
                       }
 
     netG.train()
@@ -156,6 +157,7 @@ def saveModelParams(epoch, results, netG, netD, opt, validator):
                                     'perception_loss': results['perception_loss'] / results['batchSize'],
                                     'mse_loss': results['mse_loss'] / results['batchSize'],
                                     'tv_loss': results['tv_loss'] / results['batchSize'],
+                                    'charbonnier_loss': results['charbonnier_loss'] / results['batchSize'],
                                     'REDS_PSNR': results['REDS_PSNR'], 
                                     'REDS_SSIM': results['REDS_SSIM'],
                                     'Vid4_PSNR': results['Vid4_PSNR'], 
