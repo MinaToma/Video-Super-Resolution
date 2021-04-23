@@ -32,7 +32,7 @@ class GeneratorLoss(nn.Module):
         runningResults["tv_loss"] += tv_loss.item() * batchSize
         runningResults["charbonnier_loss"] += charbonnier_loss.item() * batchSize
 
-        return image_loss
+        return charbonnier_loss
 
 
 class TVLoss(nn.Module):
