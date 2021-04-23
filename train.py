@@ -129,6 +129,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                               True
                               ) 
         DLoss = (l_d_fake + l_d_real) / 2
+        DLoss.backward()
         optimizerD.step()
 
         runningResults['GLoss'] += GLoss.item() * batchSize
