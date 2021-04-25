@@ -92,22 +92,23 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         for p in netD.parameters():
             p.requires_grad = False
 
-        optimizerG.zero_grad()
-        fakeHR = netG(input)
-        losses = generatorCriterion(fakeHR, target, runningResults, batchSize)
-        real_d_pred = netD(target).detach()
-        fake_g_pred = netD(fakeHR)
-        l_g_real = getGanLoss(real_d_pred - torch.mean(fake_g_pred),
-                              False,
-                              False)
-        l_g_fake = getGanLoss(fake_g_pred - torch.mean(real_d_pred),
-                              True,
-                              False)
-        l_g_gan = (l_g_real + l_g_fake) / 2
+        for i in range(4):
+            optimizerG.zero_grad()
+            fakeHR = netG(input)
+            losses = generatorCriterion(fakeHR, target, runningResults, batchSize)
+            real_d_pred = netD(target).detach()
+            fake_g_pred = netD(fakeHR)
+            l_g_real = getGanLoss(real_d_pred - torch.mean(fake_g_pred),
+                                  False,
+                                  False)
+            l_g_fake = getGanLoss(fake_g_pred - torch.mean(real_d_pred),
+                                  True,
+                                  False)
+            l_g_gan = (l_g_real + l_g_fake) / 2
+            GLoss = losses + l_g_gan
+            GLoss.backward()
+            optimizerG.step()
         runningResults["adversarial_loss"] += l_g_gan.item() * batchSize
-        GLoss = losses + l_g_gan
-        GLoss.backward()
-        optimizerG.step()
 
         ################################################################################################################
         # (2) Update D network: maximize D(x)-1-D(G(z))
@@ -229,8 +230,8 @@ def main():
     lr = opt.lr / (2 ** ((opt.start_epoch - 1) // 10))
 
     # Use Adam optimizer
-    optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-8)
-    optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-8)
+    optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(0.5, 0.999), eps=1e-8)
+    optimizerD = optim.Adam(netD.parameters(), lr=lr*4, betas=(0.5, 0.999), eps=1e-8)
   
     # print EDVR_GAN architecture
     # utils.printNetworkArch(netG, netD)
