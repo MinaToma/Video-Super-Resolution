@@ -76,6 +76,7 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
     netG.train()
     netD.train()
 
+    count = 0
     for input, target in trainBar:
         batchSize = input.size(0)
         runningResults['batchSize'] += batchSize
@@ -92,23 +93,22 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         for p in netD.parameters():
             p.requires_grad = False
 
-        for i in range(4):
-            optimizerG.zero_grad()
-            fakeHR = netG(input)
-            losses = generatorCriterion(fakeHR, target, runningResults, batchSize)
-            real_d_pred = netD(target).detach()
-            fake_g_pred = netD(fakeHR)
-            l_g_real = getGanLoss(real_d_pred - torch.mean(fake_g_pred),
-                                  False,
-                                  False)
-            l_g_fake = getGanLoss(fake_g_pred - torch.mean(real_d_pred),
-                                  True,
-                                  False)
-            l_g_gan = (l_g_real + l_g_fake) / 2
-            GLoss = losses + l_g_gan
-            GLoss.backward()
-            optimizerG.step()
+        optimizerG.zero_grad()
+        fakeHR = netG(input)
+        losses = generatorCriterion(fakeHR, target, runningResults, batchSize)
+        real_d_pred = netD(target).detach()
+        fake_g_pred = netD(fakeHR)
+        l_g_real = getGanLoss(real_d_pred - torch.mean(fake_g_pred),
+                              False,
+                              False)
+        l_g_fake = getGanLoss(fake_g_pred - torch.mean(real_d_pred),
+                              True,
+                              False)
+        l_g_gan = (l_g_real + l_g_fake) / 2
         runningResults["adversarial_loss"] += l_g_gan.item() * batchSize
+        GLoss = losses + l_g_gan
+        GLoss.backward()
+        optimizerG.step()
 
         ################################################################################################################
         # (2) Update D network: maximize D(x)-1-D(G(z))
@@ -130,8 +130,10 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                               True
                               ) 
         DLoss = (l_d_fake + l_d_real) / 2
-        DLoss.backward()
-        optimizerD.step()
+        if count % 2 == 0:
+          DLoss.backward()
+          optimizerD.step()
+        count += 1
 
         runningResults['GLoss'] += GLoss.item() * batchSize
         runningResults['DLoss'] += DLoss.item() * batchSize
