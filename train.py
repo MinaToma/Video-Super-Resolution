@@ -138,8 +138,8 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
 
         runningResults['GLoss'] += GLoss.item() * batchSize
         runningResults['DLoss'] += DLoss.item() * batchSize
-        runningResults['DScore'] += torch.sigmoid(real_d_pred).mean().item() * batchSize
-        runningResults['GScore'] += torch.sigmoid(fake_d_pred).mean().item() * batchSize
+        runningResults['DScore'] += l_d_real.item() * batchSize
+        runningResults['GScore'] += l_d_fake.item() * batchSize
 
         trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
