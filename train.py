@@ -45,6 +45,7 @@ parser.add_argument('--folder_save_name', help='folder name to save models')
 opt = parser.parse_args()
 
 save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame), opt.folder_save_name)
+opt.save_dir = save_dir
 print('save dir: ', save_dir)
 
 ganLoss = nn.BCEWithLogitsLoss()
@@ -146,12 +147,12 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                                        runningResults['DScore'] / runningResults['batchSize'],
                                        runningResults['GScore'] / runningResults['batchSize']))
 
-    # learning rate is decayed by a factor of 10 every half of total epochs
-    if epoch % 10 == 0:
+    # learning rate is decayed by a factor of 10 every 50 epochs
+    if epoch % 50 == 0:
         for param_group in optimizerG.param_groups:
-            param_group['lr'] /= 2.0
+            param_group['lr'] /= 10.0
         for param_group in optimizerD.param_groups:
-            param_group['lr'] /= 2.0
+            param_group['lr'] /= 10.0
         print('Learning rate in gen decayed by half every 10 epochs: lr= ', (optimizerG.param_groups[0]['lr']))
         print('Learning rate in dis decayed by half every 10 epochs: lr= ', (optimizerD.param_groups[0]['lr']))
 
@@ -165,7 +166,7 @@ def saveModelParams(epoch, results, netG, netD, opt, validator):
     dis_save_path = save_dir + '/' + opt.dis_model_name + '_' + str(epoch) + '.pth'
     
     # Validate Generator and fill accuracy
-    validator.validate(netG, results)
+    validator.validate(netG, results, epoch)
 
     # Save model parameters
     if epoch % (opt.snapshots) == 0:
@@ -228,12 +229,13 @@ def main():
     netD.to(device)
     generatorCriterion.to(device)
 
-    # divide learning by half every 10 epochs
-    lr = opt.lr / (2 ** ((opt.start_epoch - 1) // 10))
+    # divide learning by 10 every 50 epochs
+    lr = opt.lr / (10 ** ((opt.start_epoch - 1) // 50))
+    print("learning rate: " + str(lr))
 
     # Use Adam optimizer
     optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(0.5, 0.999), eps=1e-8)
-    optimizerD = optim.Adam(netD.parameters(), lr=lr*4, betas=(0.5, 0.999), eps=1e-8)
+    optimizerD = optim.Adam(netD.parameters(), lr=lr*2, betas=(0.5, 0.999), eps=1e-8)
   
     # print EDVR_GAN architecture
     # utils.printNetworkArch(netG, netD)

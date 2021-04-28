@@ -97,7 +97,7 @@ def eval():
         # write to file
         f.write("==> Processing: %s || Timer: %.4f sec." % (str(count), (t1 - t0))  + "\n")
         if opt.save_image:
-            save_img(prediction.cpu().data, count)
+            save_img(prediction, count)
 
         prediction = prediction.cpu()
         prediction = prediction.data[0].numpy().astype(np.float32)
@@ -128,7 +128,7 @@ def eval():
         
 
 def save_img(img, count):
-    save_img = img.squeeze().clamp(0, 1).numpy().transpose(1, 2, 0)
+    save_img = img.cpu().data.squeeze().clamp(0, 1).numpy().transpose(1, 2, 0)
 
     save_fn = save_dir + '/' +  str(count).zfill(8) + '.png'
     cv2.imwrite(save_fn, save_img * 255, [cv2.IMWRITE_PNG_COMPRESSION, 0])

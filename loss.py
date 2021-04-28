@@ -58,10 +58,7 @@ class TVLoss(nn.Module):
 class CharbonnierLoss(torch.nn.Module):
     def __init__(self):
         super(CharbonnierLoss, self).__init__()
-        self.eps = 1e-3
+        self.eps = 1e-20
 
     def forward(self, x, y):
-        diff = torch.add(x, -y)
-        error = torch.sqrt(diff * diff + self.eps)
-        loss = torch.mean(error)
-        return loss
+        return torch.mean(torch.sqrt((x - y)**2 + self.eps))
