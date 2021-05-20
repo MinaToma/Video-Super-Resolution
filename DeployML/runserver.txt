@@ -1,0 +1,1 @@
+call "C:\Users\mahmo\anaconda3\Scripts\activate.bat" GP  & python manage.py runserver
