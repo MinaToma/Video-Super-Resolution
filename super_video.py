@@ -36,7 +36,7 @@ import moviepy.editor as mp
 class SuperVideo:
 
     def __init__(self):
-        self.model_path = "models/netG_EDVR_4x.pth"
+        self.model_path = "models/EDVR_L_x4_SR_REDS_official-9f5f5039_5.pth"
         self.input = "results/input/"
         self.output = "results/output/"
         self.sound = "results/sound.mp3"
@@ -117,7 +117,7 @@ class SuperVideo:
         fps = vidcap.get(cv2.CAP_PROP_FPS)
         success, image = vidcap.read()
         count = 0
-        while success and count < 600:
+        while success and count < 30:
             cv2.imwrite(self.input + "{0:0=6d}".format(count) + ".jpg", image)
             success, image = vidcap.read()
             count += 1
