@@ -10,9 +10,9 @@
  3. Install [**PyCharm**](https://www.jetbrains.com/pycharm/download/)
  4. Open project in PyCharm and setup the environment that is the recently created in `req.txt`
  5. Run Server
-5.1. Navigate to `Code > BackEnd >  Video-Super-Resolution > DeployML`
-5.2. Run the following command
-`python manage.py runserver`
+	1. Navigate to `Code > BackEnd >  Video-Super-Resolution > DeployML`
+	2. Run the following command
+	`python manage.py runserver`
  6. You can access the server that has started development at http://127.0.0.1:8000/
  7. Run API to upscale the video using this
 	post api -> http://127.0.0.1:8000/model/
