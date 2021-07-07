@@ -21,14 +21,14 @@ class call_model(APIView):
 
     def post(self, request):
         if request.method == 'POST':
-            """ video = request.FILES['video']
+            video = request.FILES['video']
             if os.path.exists("1.mp4"):
                 os.remove("1.mp4")
             path = default_storage.save('1.mp4', ContentFile(video.read()))
 
 
             ApiConfig.vsr.superVideo()
-            print('done')"""
+            print('done')
             userId = request.data['userId']
             uid = uuid.uuid4()
             if os.path.exists("static/"+userId) is False:
@@ -39,4 +39,4 @@ class call_model(APIView):
             shutil.copy2('results/final_video.mp4', "static/"+userId+"/"+str(uid)+".mp4")
             shutil.copy2('results/output/00000000.png', "static/"+userId+"/"+str(uid)+".png")
 
-            return HttpResponse(status=200)
+            return Response({"url":"static/"+userId+"/"+str(uid)+".mp4"},status=200)
