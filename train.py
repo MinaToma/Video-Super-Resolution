@@ -45,16 +45,39 @@ parser.add_argument('--folder_save_name', help='folder name to save models')
 opt = parser.parse_args()
 
 save_dir = os.path.join(opt.output, opt.dataset_name, str(opt.frame), opt.folder_save_name)
+opt.save_dir = save_dir
 print('save dir: ', save_dir)
+
+ganLoss = nn.BCEWithLogitsLoss()
+def getGanLoss(input, target_is_real, is_disc):
+    target_label = input.new_ones(input.size()) * target_is_real
+    if is_disc:
+      return ganLoss(input, target_label)
+    else:      
+      return 0.001 * ganLoss(input, target_label)
 
 def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, optimizerG, generatorCriterion, device, opt):
     trainBar = tqdm(training_data_loader)
-    runningResults = {'batchSize': 0, 'DLoss': 0, 'GLoss': 0, 'DScore': 0, 'GScore': 0,
-                      'REDS_PSNR': 0, 'REDS_SSIM': 0, 'Vid4_PSNR': 0, 'Vid4_SSIM': 0}
+    runningResults = {'batchSize': 0,
+                      'DLoss': 0, 
+                      'GLoss': 0, 
+                      'DScore': 0, 
+                      'GScore': 0,
+                      'REDS_PSNR': 0, 
+                      'REDS_SSIM': 0, 
+                      'Vid4_PSNR': 0, 
+                      'Vid4_SSIM': 0,
+                      'adversarial_loss': 0,
+                      'perception_loss': 0,
+                      'mse_loss': 0,
+                      'tv_loss': 0,
+                      'charbonnier_loss': 0,
+                      }
 
     netG.train()
     netD.train()
 
+    count = 0
     for input, target in trainBar:
         batchSize = input.size(0)
         runningResults['batchSize'] += batchSize
@@ -71,10 +94,20 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         for p in netD.parameters():
             p.requires_grad = False
 
-        netG.zero_grad()
+        optimizerG.zero_grad()
         fakeHR = netG(input)
-        fakeOut = netD(fakeHR)
-        GLoss = generatorCriterion(fakeOut, fakeHR, target)
+        losses = generatorCriterion(fakeHR, target, runningResults, batchSize)
+        real_d_pred = netD(target).detach()
+        fake_g_pred = netD(fakeHR)
+        l_g_real = getGanLoss(real_d_pred - torch.mean(fake_g_pred),
+                              False,
+                              False)
+        l_g_fake = getGanLoss(fake_g_pred - torch.mean(real_d_pred),
+                              True,
+                              False)
+        l_g_gan = (l_g_real + l_g_fake) / 2
+        runningResults["adversarial_loss"] += l_g_gan.item() * batchSize
+        GLoss = losses + l_g_gan
         GLoss.backward()
         optimizerG.step()
 
@@ -83,17 +116,30 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
         ################################################################################################################
         for p in netD.parameters():
             p.requires_grad = True
-        netD.zero_grad()
-        realOut = netD(target).mean()
-        fakeOut = netD(fakeHR.detach()).mean()
-        DLoss = 1 - realOut + fakeOut
-        DLoss.backward()
-        optimizerD.step()
+        optimizerD.zero_grad()
+        # real
+        fake_d_pred = netD(fakeHR).detach()
+        real_d_pred = netD(target)
+        l_d_real = getGanLoss(real_d_pred - torch.mean(fake_d_pred),
+                              True,
+                              True
+                              )
+        # fake
+        fake_d_pred = netD(fakeHR.detach())
+        l_d_fake = getGanLoss(fake_d_pred - torch.mean(real_d_pred.detach()),
+                              False,
+                              True
+                              ) 
+        DLoss = (l_d_fake + l_d_real) / 2
+        if count % 2 == 0:
+          DLoss.backward()
+          optimizerD.step()
+        count += 1
 
         runningResults['GLoss'] += GLoss.item() * batchSize
         runningResults['DLoss'] += DLoss.item() * batchSize
-        runningResults['DScore'] += realOut.mean().item() * batchSize
-        runningResults['GScore'] += fakeOut.mean().item() * batchSize
+        runningResults['DScore'] += l_d_real.item() * batchSize
+        runningResults['GScore'] += l_d_fake.item() * batchSize
 
         trainBar.set_description(desc='[Epoch: %d/%d] D Loss: %.20f G Loss: %.20f D(x): %.20f D(G(z)): %.20f' %
                                        (epoch, tot_epoch, runningResults['DLoss'] / runningResults['batchSize'],
@@ -101,12 +147,12 @@ def trainModel(epoch, tot_epoch, training_data_loader, netG, netD, optimizerD, o
                                        runningResults['DScore'] / runningResults['batchSize'],
                                        runningResults['GScore'] / runningResults['batchSize']))
 
-    # learning rate is decayed by a factor of 10 every half of total epochs
-    if epoch % 10 == 0:
+    # learning rate is decayed by a factor of 10 every 50 epochs
+    if epoch % 50 == 0:
         for param_group in optimizerG.param_groups:
-            param_group['lr'] /= 2.0
+            param_group['lr'] /= 10.0
         for param_group in optimizerD.param_groups:
-            param_group['lr'] /= 2.0
+            param_group['lr'] /= 10.0
         print('Learning rate in gen decayed by half every 10 epochs: lr= ', (optimizerG.param_groups[0]['lr']))
         print('Learning rate in dis decayed by half every 10 epochs: lr= ', (optimizerD.param_groups[0]['lr']))
 
@@ -119,15 +165,15 @@ def saveModelParams(epoch, results, netG, netD, opt, validator):
     gen_save_path = save_dir + '/' + opt.gen_model_name + '_' + str(epoch) + '.pth'
     dis_save_path = save_dir + '/' + opt.dis_model_name + '_' + str(epoch) + '.pth'
     
+    # Validate Generator and fill accuracy
+    validator.validate(netG, results, epoch)
+
     # Save model parameters
     if epoch % (opt.snapshots) == 0:
         torch.save(netG.state_dict(), gen_save_path)
         torch.save(netD.state_dict(), dis_save_path)
         print("Checkpoint saved to {}".format(gen_save_path))
         print("Checkpoint saved to {}".format(dis_save_path))
-
-    # Validate Generator and fill accuracy
-    validator.validate(netG, results)
 
     csv_path = save_dir + '/train_results.csv'
     header = epoch == 1
@@ -138,11 +184,18 @@ def saveModelParams(epoch, results, netG, netD, opt, validator):
                                     'GLoss': results['GLoss'] / results['batchSize'],
                                     'DScore': results['DScore'] / results['batchSize'],
                                     'GScore': results['GScore'] / results['batchSize'],
+                                    'adversarial_loss': results['adversarial_loss'] / results['batchSize'],
+                                    'perception_loss': results['perception_loss'] / results['batchSize'],
+                                    'mse_loss': results['mse_loss'] / results['batchSize'],
+                                    'tv_loss': results['tv_loss'] / results['batchSize'],
+                                    'charbonnier_loss': results['charbonnier_loss'] / results['batchSize'],
                                     'REDS_PSNR': results['REDS_PSNR'], 
                                     'REDS_SSIM': results['REDS_SSIM'],
                                     'Vid4_PSNR': results['Vid4_PSNR'], 
-                                    'Vid4_SSIM': results['Vid4_SSIM']},
+                                    'Vid4_SSIM': results['Vid4_SSIM'],
+                                    },
                                      index=range(epoch, epoch + 1))
+
     data_frame.to_csv(csv_path, mode='a', index_label='Epoch', header=header)
 
 def main():
@@ -176,12 +229,13 @@ def main():
     netD.to(device)
     generatorCriterion.to(device)
 
-    # divide learning by half every 10 epochs
-    lr = opt.lr / (2 ** ((opt.start_epoch - 1) // 10))
+    # divide learning by 10 every 50 epochs
+    lr = opt.lr / (10 ** ((opt.start_epoch - 1) // 50))
+    print("learning rate: " + str(lr))
 
     # Use Adam optimizer
-    optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-8)
-    optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-8)
+    optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(0.5, 0.999), eps=1e-8)
+    optimizerD = optim.Adam(netD.parameters(), lr=lr*2, betas=(0.5, 0.999), eps=1e-8)
   
     # print EDVR_GAN architecture
     # utils.printNetworkArch(netG, netD)

@@ -16,6 +16,9 @@ def get_test_set(opt):
         return REDSTestDataset(opt)
     return Vid4TestDataset(opt)
 
+def get_output_set(input,frame):
+    return OutputFromFolder(input,frame)
+
 class Patcher(object):
     def __call__(self, sample):
       img_lqs, img_gts, gt_patch_size = sample['lr'], sample['hr'], sample['patch_size']
@@ -29,10 +32,7 @@ class Patcher(object):
           raise ValueError(
               f'Scale mismatches. GT ({h_gt}, {w_gt}) is not {scale}x ',
               f'multiplication of LQ ({h_lq}, {w_lq}).')
-      if h_lq < lq_patch_size or w_lq < lq_patch_size:
-          raise ValueError(f'LQ ({h_lq}, {w_lq}) is smaller than patch size '
-                          f'({lq_patch_size}, {lq_patch_size}). '
-                          f'Please remove {gt_path}.')
+
 
       # randomly choose top and left coordinates for lq patch
       top = random.randint(0, h_lq - lq_patch_size)
@@ -79,7 +79,11 @@ class ToTensor(object):
         lr = torch.from_numpy(lr).float()
         hr = torch.from_numpy(hr).float()
         return {'lr': lr.permute(0, 3, 1, 2), 'hr': hr.permute(2, 0, 1)}
-
+class ToTensorOutput(object):
+    def __call__(self, sample):
+        lr = sample['lr'] / 255
+        lr = torch.from_numpy(lr).float()
+        return {'lr': lr.permute(0, 3, 1, 2)}
 class REDSTrainDataset(data.Dataset):
     def __init__(self, opt):
         self.dir_HR = opt.gt_dir
@@ -236,3 +240,39 @@ class Vid4TestDataset(data.Dataset):
         sample = self.transform(sample)
 
         return sample['lr'], sample['hr']
+
+class OutputFromFolder(data.Dataset):
+    def __init__(self, input,frame):
+        self.dir_LR = input
+        self.img_list = sorted(listdir(self.dir_LR))
+        self.frame_num = frame
+        self.half_frame_num = int(self.frame_num / 2)
+        self.transform = Compose([ToTensorOutput()])
+        self.scale = 4
+        self.len = len(self.img_list)
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        frames_lr_name = '{}/{}'.format(self.dir_LR, self.img_list[idx])
+        frames_lrL= cv2.imread(frames_lr_name)
+        h, w, ch = frames_lrL.shape
+
+        center_index = idx
+
+        frames_lr = np.zeros((self.frame_num, int(h), int(w), ch))
+        for j in range(center_index - self.half_frame_num, center_index + self.half_frame_num + 1):
+            i = j - center_index + self.half_frame_num
+            if j < 0:
+                j = 0
+            if j >= len(self.img_list):
+                j = len(self.img_list) - 1
+            frames_lr_name = '{}/{}'.format(self.dir_LR, self.img_list[j])
+            img = cv2.imread(frames_lr_name)
+            frames_lr[i, :, :, :] = img  # t h w c
+
+        sample = {'lr': frames_lr}
+        sample = self.transform(sample)
+
+        return sample['lr']

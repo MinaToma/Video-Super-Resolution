@@ -1,12 +1,18 @@
 import torch
 import numpy as np
 from metrics import *
+import os
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from dataset import get_test_set
 
 def make_data_loader(dataset_loader):
     return DataLoader(dataset=dataset_loader, num_workers=1, batch_size=1, shuffle=False)
+
+def save_img(img, count, save_dir, epoch):
+    save_img = img.cpu().data.squeeze().clamp(0, 1).numpy().transpose(1, 2, 0)
+    save_fn = save_dir + '/' + str(epoch).zfill(3) + '_' + str(count).zfill(8) + '.png'
+    cv2.imwrite(save_fn, save_img * 255, [cv2.IMWRITE_PNG_COMPRESSION, 0])
 
 class OPT_MOCK:
     def __init__(self, gt_dir, lr_dir, clip_name, frame, dataset_name):
@@ -19,6 +25,9 @@ class OPT_MOCK:
 class Validator:
     def __init__(self, opt, device):
         self.device = device
+        self.save_dir = opt.save_dir + '/validation'
+        if not os.path.exists(self.save_dir):
+          os.makedirs(self.save_dir)
 
         self.vid4_clips = ['calendar', 'city', 'foliage' , 'walk']
         self.reds_clips = ['000', '011', '015', '020']
@@ -35,7 +44,7 @@ class Validator:
             validate_set = get_test_set(opt_mock)
             self.validateREDSLoaders.append(make_data_loader(validate_set))
     
-    def validate(self, model, runningResults):
+    def validate(self, model, runningResults, epoch):
         print('===========> Started Validation')
         model.eval()
 
@@ -47,7 +56,7 @@ class Validator:
 
         print('======> Started Vid4 Validation')
         for i, datasetLoader in enumerate(self.validateVid4Loaders):
-            psnr, ssim = self.validate_model(model, datasetLoader)
+            psnr, ssim = self.validate_model(model, datasetLoader, epoch, i == 0)
             runningResults[self.vid4_clips[i] + '_PSNR'] = psnr
             runningResults[self.vid4_clips[i] + '_SSIM'] = ssim
 
@@ -65,7 +74,7 @@ class Validator:
         print()
         # print('('======> Started REDS Validation')
         # for i, datasetLoader in enumerate(self.validateREDSLoaders):
-        #     psnr, ssim = self.validate_model(model, datasetLoader)
+        #     psnr, ssim = self.validate_model(model, datasetLoader, epoch, i == 0)
         #     runningResults[self.reds_clips[i] + '_PSNR'] = psnr
         #     runningResults[self.reds_clips[i] + '_SSIM'] = ssim
 
@@ -82,7 +91,7 @@ class Validator:
         # print('REDS_SSIM: %.20f' % (runningResults['REDS_SSIM']))
         # print()
 
-    def validate_model(self, model, dataset_loader):
+    def validate_model(self, model, dataset_loader, epoch, is_save_img = False):
         avg_psnr_predicted = 0.0
         avg_ssim_predicted = 0.0
 
@@ -95,6 +104,9 @@ class Validator:
                 input = input.to(self.device)
                 target = target.to(self.device)
                 prediction = model(input)
+
+            if count == 10 and is_save_img:
+              save_img(prediction, count, self.save_dir, epoch)
 
             prediction = prediction.cpu()
             prediction = prediction.data[0].numpy().astype(np.float32)

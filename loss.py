@@ -5,9 +5,6 @@ from torchvision.transforms import *
 import torch.nn.functional as F
 from torchvision.models import vgg16
 
-def get_loss_function():
-    return GeneratorLoss()
-
 class GeneratorLoss(nn.Module):
     def __init__(self):
         super(GeneratorLoss, self).__init__()
@@ -18,18 +15,24 @@ class GeneratorLoss(nn.Module):
         self.loss_network = loss_network
         self.mse_loss = nn.MSELoss()
         self.tv_loss = TVLoss()
+        self.charbonnier_loss = CharbonnierLoss()
 
-    def forward(self, out_labels, hr_est, hr_img):
-        # Adversarial Loss
-        adversarial_loss = -torch.mean(out_labels)
+    def forward(self, hr_est, hr_img, runningResults, batchSize):
         # Perception Loss
         perception_loss = self.mse_loss(self.loss_network(hr_est), self.loss_network(hr_img))
         # Image Loss
         image_loss = self.mse_loss(hr_est, hr_img)
         # TV Loss
         tv_loss = self.tv_loss(hr_est)
+        # charbonnier_loss
+        charbonnier_loss = self.charbonnier_loss(hr_est, hr_img)
 
-        return image_loss + 0.001 * adversarial_loss + 0.006 * perception_loss + 2e-8 * tv_loss
+        runningResults["perception_loss"] += perception_loss.item() * batchSize
+        runningResults["mse_loss"] += image_loss.item() * batchSize
+        runningResults["tv_loss"] += tv_loss.item() * batchSize
+        runningResults["charbonnier_loss"] += charbonnier_loss.item() * batchSize
+
+        return charbonnier_loss
 
 
 class TVLoss(nn.Module):
@@ -55,10 +58,7 @@ class TVLoss(nn.Module):
 class CharbonnierLoss(torch.nn.Module):
     def __init__(self):
         super(CharbonnierLoss, self).__init__()
-        self.eps = 1e-3
+        self.eps = 1e-20
 
     def forward(self, x, y):
-        diff = torch.add(x, -y)
-        error = torch.sqrt(diff * diff + self.eps)
-        loss = torch.mean(error)
-        return loss
+        return torch.mean(torch.sqrt((x - y)**2 + self.eps))
